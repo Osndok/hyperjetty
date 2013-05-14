@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export CONTROL_PORT=5001
+
+exec java -cp out/production/hyperjetty com.allogy.hyperjetty.Client "$@"

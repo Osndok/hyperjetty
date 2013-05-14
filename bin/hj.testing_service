@@ -1,0 +1,9 @@
+#!/bin/bash
+
+export CONTROL_PORT=5001
+export LIB_DIRECTORY=/tmp/hyperjetty-$USER
+export LOG_DIRECTORY=$LIB_DIRECTORY
+export JETTY_RUNNER_JAR=lib/jetty-runner.jar
+
+exec java -cp out/production/hyperjetty com.allogy.hyperjetty.Service "$@"
+
