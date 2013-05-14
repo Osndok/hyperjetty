@@ -17,7 +17,7 @@ import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
-import static com.allogy.hyperjetty.ServletProps.WAR;
+import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
 
 /**
  * User: robert
@@ -768,7 +768,7 @@ public class Service implements Runnable
 
         maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
         maybeSet(p, JMX_PORT, Integer.toString(jmxPort));
-        maybeSet(p, WAR , war);
+        maybeSet(p, ORIGINAL_WAR, war);
         maybeSet(p, NAME, name);
         maybeSet(p, PATH, path);
 
@@ -791,7 +791,7 @@ public class Service implements Runnable
         else
         {
             int pid=actuallyLaunchServlet(servicePort);
-            out.print("GOOD\n"+pid+"\n");
+            out.print("GOOD\n" + pid + "\n");
         }
     }
 
