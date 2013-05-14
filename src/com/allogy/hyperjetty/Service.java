@@ -270,7 +270,7 @@ public class Service implements Runnable
      * @param servicePort - the primary port that the servlet will serve from
      */
     private
-    void actuallyLaunchServlet(int servicePort) throws IOException
+    int actuallyLaunchServlet(int servicePort) throws IOException
     {
         File configFile=new File(libDirectory, servicePort+".config");
         File warFile   =new File(libDirectory, servicePort+".war"   );
@@ -377,7 +377,7 @@ public class Service implements Runnable
             e.printStackTrace();
         }
 
-        Integer.parseInt(pidString); //throws if not an integer
+        int pid=Integer.parseInt(pidString);
 
         p.setProperty(PID.toString(), pidString);
 
@@ -390,6 +390,8 @@ public class Service implements Runnable
         {
             throw new IllegalStateException("failure to launch: "+pidString);
         }
+
+        return pid;
     }
 
     private
@@ -467,6 +469,7 @@ public class Service implements Runnable
 
         if (pid<0)
         {
+            ///!!!: bug: setting the pid<=1 should indicate that the servlet should *NOT* be restarted automatically
             log.println("special pid indicates last state was not running / stopped: "+pid);
             return false;
         }
@@ -783,13 +786,13 @@ public class Service implements Runnable
         if (dry!=null && dry.toLowerCase().equals("true"))
         {
             log.println("not launching servlet, as dry option is true");
+            out.print("GOOD\ndry\n");
         }
         else
         {
-            actuallyLaunchServlet(servicePort);
+            int pid=actuallyLaunchServlet(servicePort);
+            out.print("GOOD\n"+pid+"\n");
         }
-
-        out.println("GOOD");
     }
 
     private
