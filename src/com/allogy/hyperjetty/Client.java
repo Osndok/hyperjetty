@@ -15,6 +15,7 @@ public class Client
     private final Socket socket;
     private final InputStream inputStream;
     private final OutputStream outputStream;
+    private boolean extraOutput=false;
 
     public
     Client(String host, int port) throws IOException
@@ -71,7 +72,9 @@ public class Client
 
             if (client.goodServerResponse())
             {
-                System.err.println("success");
+                if (!client.extraOutput) {
+                    System.err.println("success");
+                }
                 System.exit(0);
             }
             else
@@ -158,6 +161,7 @@ public class Client
 
         while ((line=br.readLine())!=null)
         {
+            extraOutput=true;
             if (retval) {
                 System.out.println(line);
             } else {

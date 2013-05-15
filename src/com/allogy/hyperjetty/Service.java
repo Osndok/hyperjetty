@@ -892,6 +892,8 @@ public class Service implements Runnable
         String permMemory=null;
         String stackMemory=null;
 
+        String returnValue="port";
+
         Iterator<String> i=args.iterator();
 
         while (i.hasNext())
@@ -934,6 +936,10 @@ public class Service implements Runnable
             else if (flag.contains("-stack"))
             {
                 stackMemory=argument;
+            }
+            else if (flag.contains("-return"))
+            {
+                returnValue=argument;
             }
             else
             {
@@ -1076,16 +1082,26 @@ public class Service implements Runnable
 
         portReservation.release();
 
+        String retval=Integer.toString(servicePort);
+
         if (dry!=null && dry.toLowerCase().equals("true"))
         {
             log.println("not launching servlet, as dry option is true");
-            out.print("GOOD\ndry\n");
+            if (returnValue.equals("pid"))
+            {
+                retval="dry";
+            }
         }
         else
         {
             int pid=actuallyLaunchServlet(servicePort);
-            out.print("GOOD\n" + pid + "\n");
+            if (returnValue.equals("pid"))
+            {
+                retval=Integer.toString(pid);
+            }
         }
+        out.println("GOOD");
+        out.println(retval);
     }
 
     private
