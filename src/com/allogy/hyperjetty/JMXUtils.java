@@ -78,10 +78,11 @@ class JMXUtils
         }
     }
 
-    private static boolean ONCE=true;
+    private static boolean INTERPRET_FIRST_STOP_COMMAND_AS_JMX_DEBUG_DUMP =false;
 
     public static void tellJettyContainerToStopAtJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
-            MBeanException, InstanceNotFoundException, ReflectionException
+            MBeanException, InstanceNotFoundException, ReflectionException, IntrospectionException,
+            AttributeNotFoundException
     {
         JMXServiceURL jmxServiceURL=serviceUrlForPort(jmxPort);
 
@@ -91,10 +92,11 @@ class JMXUtils
 
             MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
 
-            if (ONCE)
+            if (INTERPRET_FIRST_STOP_COMMAND_AS_JMX_DEBUG_DUMP)
             {
-                ONCE=false;
+                INTERPRET_FIRST_STOP_COMMAND_AS_JMX_DEBUG_DUMP =false;
                 debugJettyMBeans(mBeanServerConnection);
+                throw new RuntimeException("testing");
             }
 
             ObjectName objectName=new ObjectName("org.eclipse.jetty.server:type=server,id=0");
@@ -113,15 +115,21 @@ class JMXUtils
 
         } finally {
             /*
-            Strangly enough, jetty reacts so fast that this 'close' command tries to re-open the connection ?!?!?
-            So I guess we will just not call it, okay?
-
-            jmxConnector.close();
+            Strangely enough, jetty reacts so fast that this 'close' command tries to re-open the connection ?!?!?
+            But if we just don't call it, then we'll get ugly message in the server logs... uggh...
             */
+            try {
+                jmxConnector.close();
+            } catch (Throwable t) {
+                System.err.println("benign: "+t.toString()+" (faulty reconnect attempt while stopping)");
+            }
+
         }
     }
 
-    private static void debugJettyMBeans(MBeanServerConnection mBeanServerConnection) throws IOException
+    private static void debugJettyMBeans(MBeanServerConnection mBeanServerConnection) throws IOException,
+            IntrospectionException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException,
+            MBeanException
     {
         System.err.println("\n\nDump of JMX MBeans that should be available from Jetty\n--------------------------");
         Set<ObjectName> objectNames = mBeanServerConnection.queryNames(null, null);
@@ -129,6 +137,47 @@ class JMXUtils
             System.err.println(objectName.toString());
         }
         System.err.println();
+
+        for (ObjectName objectName : objectNames)
+        {
+
+            if (objectName.toString().startsWith("org.")) {
+                continue;
+            }
+            /* /
+            if (!objectName.toString().startsWith("JMI")) {
+                continue;
+            }
+            */
+            System.err.println();
+            System.err.println(objectName.toString());
+            System.err.println("-------------------------------------------");
+            System.err.println();
+            /*
+            for (Map.Entry<String, String> me : objectName.getKeyPropertyList().entrySet()) {
+                System.err.println(me.getKey()+"\t= "+me.getValue());
+            }
+            *
+            for (ObjectInstance objectInstance : mBeanServerConnection.queryMBeans(objectName, null)) {
+                System.err.println(objectInstance);
+            }
+            */
+            MBeanInfo mBeanInfo = mBeanServerConnection.getMBeanInfo(objectName);
+
+            for (MBeanAttributeInfo mBeanAttributeInfo : mBeanInfo.getAttributes())
+            {
+                String name=mBeanAttributeInfo.getName();
+                Object value=null;
+                try {
+                    value=mBeanServerConnection.getAttribute(objectName, name);
+                } catch (Throwable t) {
+                    value="-Unknown-";
+                }
+                System.err.println(name+"\n\tvalue = '"+value+"'\n\tdesc = "+mBeanAttributeInfo.getDescription());
+            }
+
+        }
+
     }
 
     private static JMXServiceURL serviceUrlForPort(int jmxPort) throws MalformedURLException

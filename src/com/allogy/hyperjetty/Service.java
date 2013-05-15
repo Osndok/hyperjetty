@@ -18,6 +18,7 @@ import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
+import static com.allogy.hyperjetty.ServletProps.VERSION;
 
 /**
  * User: robert
@@ -371,6 +372,8 @@ public class Service implements Runnable
             sb.append(" -Dcom.sun.management.jmxremote.ssl=false");
         }
 
+        sb.append(" -Dvisualvm.display.name=").append(debugProcessNameWithoutSpaces(p));
+
         if (jettyJmxJar!=null && jettyJmxJar.exists())
         {
             sb.append(" -cp ").append(jettyJmxJar).append(':').append(jettyRunnerJar);
@@ -468,6 +471,34 @@ public class Service implements Runnable
         }
 
         return pid;
+    }
+
+    private
+    String debugProcessNameWithoutSpaces(Properties p)
+    {
+        StringBuilder sb=new StringBuilder();
+
+        sb.append(p.get(NAME.toString()));
+
+        if (p.containsKey(VERSION.toString())) {
+            sb.append('-');
+            sb.append(p.get(VERSION.toString()));
+        }
+
+        sb.append('-');
+        sb.append(p.getProperty(SERVICE_PORT.toString()));
+
+        sb.append('-');
+        sb.append(p.getProperty(PATH.toString()));
+
+        int i;
+
+        while ((i=sb.indexOf(" "))>=0)
+        {
+            sb.replace(i, i+1, "-");
+        }
+
+        return sb.toString();
     }
 
     private
