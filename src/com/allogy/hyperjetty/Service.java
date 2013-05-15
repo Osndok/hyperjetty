@@ -872,6 +872,7 @@ public class Service implements Runnable
         String name=null;
         String path=null;
         String dry=null;
+        String version=null;
 
         Iterator<String> i=args.iterator();
 
@@ -899,6 +900,10 @@ public class Service implements Runnable
             else if (flag.contains("-dry"))
             {
                 dry=argument;
+            }
+            else if (flag.contains("-version"))
+            {
+                version=argument;
             }
             else
             {
@@ -1002,6 +1007,11 @@ public class Service implements Runnable
         {
             log.println("INFO: the war file has no embedded servlet properties");
             p=new Properties();
+        }
+
+        if (version!=null)
+        {
+            maybeSet(p, VERSION, version);
         }
 
         maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
