@@ -60,8 +60,10 @@ public class Client
             }
         }
 
+        /*
         System.err.println("HJ_HOST="+host);
         System.err.println("HJ_PORT="+port);
+        */
 
         try {
             Client client=new Client(host, Integer.parseInt(port));

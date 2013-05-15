@@ -6,6 +6,7 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
+import java.lang.management.MemoryUsage;
 import java.net.MalformedURLException;
 import java.rmi.UnmarshalException;
 import java.util.Set;
@@ -22,6 +23,46 @@ import java.util.Set;
 class JMXUtils
 {
 
+    public static ServletMemoryUsage getMemoryUsageGivenJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
+            MBeanException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException
+    {
+        JMXServiceURL jmxServiceURL=serviceUrlForPort(jmxPort);
+
+        JMXConnector jmxConnector = JMXConnectorFactory.connect(jmxServiceURL);
+
+        try {
+
+            MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
+
+            ObjectName objectName=new ObjectName("java.lang:type=Memory");
+
+            CompositeData heapStats = (CompositeData) mBeanServerConnection.getAttribute(objectName, "HeapMemoryUsage");
+
+            Long heapMax=(Long)heapStats.get("max");
+            Long heapUsed=(Long)heapStats.get("used");
+
+            long heapPercentage=100*heapUsed/heapMax;
+
+            objectName=new ObjectName("java.lang:type=MemoryPool,name=CMS Perm Gen");
+
+            CompositeData permGenStats=(CompositeData)mBeanServerConnection.getAttribute(objectName, "Usage");
+
+            Long permMax=(Long)permGenStats.get("max");
+            Long permUsed=(Long)permGenStats.get("used");
+
+            long permPercentage=100*permUsed/permMax;
+
+            ServletMemoryUsage retval=new ServletMemoryUsage();
+
+            retval.setHeapStats(heapUsed, heapMax, (int)heapPercentage);
+            retval.setPermGenStats(permUsed, permMax, (int)permPercentage);
+
+            return retval;
+        } finally {
+            jmxConnector.close();
+        }
+    }
+
     public static void printMemoryUsageGivenJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
             MBeanException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException
     {
@@ -37,15 +78,6 @@ class JMXUtils
 
             CompositeData compositeData = (CompositeData) mBeanServerConnection.getAttribute(objectName, "HeapMemoryUsage");
 
-            /*
-            System.err.println("-----Heap-----");
-
-            for (String key : compositeData.getCompositeType().keySet()) {
-                Object o = compositeData.get(key);
-                System.err.println(key+"\t= "+o+" "+o.getClass());
-            }
-            */
-
             Long heapMax=(Long)compositeData.get("max");
             Long heapUsed=(Long)compositeData.get("used");
 
@@ -56,15 +88,6 @@ class JMXUtils
             objectName=new ObjectName("java.lang:type=MemoryPool,name=CMS Perm Gen");
 
             compositeData=(CompositeData)mBeanServerConnection.getAttribute(objectName, "Usage");
-
-            /*
-            System.err.println("-----Permgen-----");
-
-            for (String key : compositeData.getCompositeType().keySet()) {
-                Object o = compositeData.get(key);
-                System.err.println(key+"\t= "+o+" "+o.getClass());
-            }
-            */
 
             Long permMax=(Long)compositeData.get("max");
             Long permUsed=(Long)compositeData.get("used");

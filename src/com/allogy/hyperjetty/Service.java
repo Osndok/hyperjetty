@@ -738,6 +738,10 @@ public class Service implements Runnable
         {
             doStopCommand(args, in, out);
         }
+        else if (command.equals("stats"))
+        {
+            doStatsCommand(args, in, out);
+        }
         else
         {
             String message="Unknown command: "+command;
@@ -1104,4 +1108,224 @@ public class Service implements Runnable
             p.setProperty(key, ifNotPresent);
         }
     }
+
+    private
+    void doStatsCommand(List<String> args, ObjectInputStream in, PrintStream out) throws IOException
+    {
+        String port=null;
+        String path=null;
+        String name=null;
+        String version=null;
+
+        String header="true";
+
+        Iterator<String> i=args.iterator();
+
+        while (i.hasNext())
+        {
+            String flag=i.next();
+            String argument;
+
+            try {
+                argument=i.next();
+            } catch (NoSuchElementException e) {
+                throw new IllegalArgumentException(flag+" requires one argument", e);
+            }
+
+            if (flag.contains("-port"))
+            {
+                port=argument;
+            }
+            else if (flag.contains("-name"))
+            {
+                name=argument;
+            }
+            else if (flag.contains("-path"))
+            {
+                path=argument;
+            }
+            else if (flag.contains("-version"))
+            {
+                version=argument;
+            }
+            else if (flag.contains("-header"))
+            {
+                header=argument;
+            }
+            else
+            {
+                String message="Unknown flag: "+flag;
+                log.println(message);
+                out.println(message);
+                return;
+            }
+        }
+
+        Filter filter=new Filter(port, path, name, version);
+
+        out.println("GOOD");
+
+        if (trueish(header))
+        { //scope for A & B
+
+            StringBuilder a=new StringBuilder();
+            StringBuilder b=new StringBuilder();
+
+            //Basically... don't print those columns that are already specified by filter...
+            // and print the predictably-sized fields first, then likely-to-be-small, then rest
+            // PORT | LIFE | HEAP | PERM | VERSION | PATH | App-name
+
+            if (port==null)
+            {
+                a.append(" Port  |");
+                b.append("-------+");
+                //append(" 10000 |");
+            }
+
+            a.append(" Life  |  Heap Usage   | PermGen Usage ");
+            b.append("-------+---------------+---------------");
+            //append(" ALIVE |  100% of 999m |  100% of 999m ");
+            //append(" DEAD  |   10% of   3g |   10% of   9m ");
+            //append(" STOP  |    - N/A -    |    - N/A -    ");
+
+            if (version==null)
+            {
+                a.append("| Version ");
+                b.append("+---------");
+                //append("| v0.3.31 ");
+                //append("|   N/A   ");
+            }
+
+            if (path==null)
+            {
+                a.append("| Request Path ");
+                b.append("+--------------");
+                //append("| /latest      ");
+                //append("| /wui         ");
+                //append("| /statements  ");
+            }
+
+            if (name==null)
+            {
+                a.append("| Application Name");
+                b.append("+----------------------");
+                //append("| capillary-wui\n");
+                //append("| android-distribution\n");
+                //append("| cantina-web\n");
+            }
+
+            out.println(a.toString());
+            out.println(b.toString());
+
+        } //scope for A & B
+
+        int count=0;
+
+        StringBuilder line=new StringBuilder(200);
+
+        for (File file : libDirectory.listFiles())
+        {
+            if (!file.getName().endsWith(".config"))
+            {
+                continue;
+            }
+
+            Properties p=propertiesFromFile(file);
+
+            if (filter.matches(p))
+            {
+                count++;
+
+                if (port==null)
+                {
+                    //append(" Port  |");
+                    //append("-------+");
+                    //append(" 10000 |");
+                    line.append(' ');
+                    line.append(String.format("%5s", p.getProperty(SERVICE_PORT.toString(), "Err")));
+                    line.append(" |");
+                }
+
+                //append(" Life  |  Heap Usage   | PermGen Usage ");
+                //append("-------+---------------+---------------");
+                //append(" ALIVE |  100% of 999m |  100% of 999m ");
+                //append(" DEAD  |   10% of   3g |   10% of   9m ");
+                //append(" STOP  |    - N/A -    |    - N/A -    ");
+                //append(" ALIVE |    No JMX     |    No JMX     ");
+                int pid=pid(p);
+
+                if (pid<=1)
+                {
+                    line.append(" STOP  |    - N/A -    |    - N/A -    ");
+                }
+                else if (isRunning(pid))
+                {
+                    String jmxString=p.getProperty(JMX_PORT.toString());
+                    ServletMemoryUsage smu=null;
+
+                    if (jmxString!=null) {
+                        try {
+                            int jmxPort=Integer.parseInt(jmxString);
+                            smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
+                        } catch (Throwable t) {
+                            //hide somehow?
+                        }
+                    }
+                    if (smu==null)
+                    {
+                        line.append(" ALIVE |    No JMX     |    No JMX     ");
+                    }
+                    else
+                    {
+                        line.append(" ALIVE |  ");
+                        line.append(smu.getHeapSummary());
+                        line.append(" |  ");
+                        line.append(smu.getPermGenSummary());
+                        line.append(' ');
+                    }
+                } else {
+                    line.append(" DEAD  |    - N/A -    |    - N/A -    ");
+                }
+
+                if (version==null)
+                {
+                    //append("| Version ");
+                    //append("+---------");
+                    //append("| v0.3.31 ");
+                    //append("|   N/A   ");
+                    line.append("| ");
+                    line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "N/A")));
+                    line.append(' ');
+                }
+
+                if (path==null)
+                {
+                    //append("| Request Path ");
+                    //append("+--------------");
+                    //append("| /latest      ");
+                    //append("| /wui         ");
+                    //append("| /statements  ");
+                    line.append("| ");
+                    line.append(String.format("%-12s", p.getProperty(PATH.toString())));
+                    line.append(" ");
+                }
+
+                if (name==null)
+                {
+                    //append("| Application Name");
+                    //append("+----------------------");
+                    //append("| capillary-wui\n");
+                    //append("| android-distribution\n");
+                    //append("| cantina-web\n");
+                    line.append("| ");
+                    line.append(p.getProperty(NAME.toString(), "N/A"));
+                }
+
+                out.println(line.toString());
+            }
+        }
+
+    }
+
+
 }
