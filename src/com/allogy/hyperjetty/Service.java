@@ -367,9 +367,23 @@ public class Service implements Runnable
 
         if ((arg=p.getProperty(JMX_PORT.toString()))!=null)
         {
-            sb.append(" -Dcom.sun.management.jmxremote.port=").append(arg);
-            sb.append(" -Dcom.sun.management.jmxremote.authenticate=false");
-            sb.append(" -Dcom.sun.management.jmxremote.ssl=false");
+            if (jettyJmxXml.exists())
+            {
+                /**
+                 * This mode is preferred b/c it behaves well with firewalls & port forwarding, the
+                 * only downside is that one must manually uncomment section of config (on use an
+                 * un-pristine default config), see:
+                 *
+                 * http://wiki.eclipse.org/Jetty/Tutorial/JMX
+                 */
+                sb.append(" -Djetty.jmxrmiport=").append(arg);
+            }
+            else
+            {
+                sb.append(" -Dcom.sun.management.jmxremote.port=").append(arg);
+                sb.append(" -Dcom.sun.management.jmxremote.authenticate=false");
+                sb.append(" -Dcom.sun.management.jmxremote.ssl=false");
+            }
         }
 
         sb.append(" -Dvisualvm.display.name=").append(debugProcessNameWithoutSpaces(p));
