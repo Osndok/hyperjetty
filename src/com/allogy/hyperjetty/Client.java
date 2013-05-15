@@ -54,7 +54,7 @@ public class Client
             {
                 thisArgIsHost=true;
             }
-            else if (isOptionFlag(arg, "-port") || arg.equals("-P"))
+            else if (isOptionFlag(arg, "-hj-port") || arg.equals("-P"))
             {
                 thisArgIsPort=true;
             }

@@ -27,27 +27,33 @@ import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
 public class Service implements Runnable
 {
 
+    private static final String SERVLET_STOPPED_PID = "-1";
+
     private final File libDirectory;
     private final File logDirectory;
-    private final File jettyRunnerJar;
     private final ServerSocket serverSocket;
     private final PrintStream log;
 
+    private File jettyRunnerJar=new File("lib/jetty-runner.jar");
+    private File jettyJmxJar   =new File("lib/jetty-jmx.jar");
+    private File jettyJmxXml   =new File("lib/jetty-jmx.xml");
+
     public
-    Service(int controlPort, File libDirectory, File logDirectory, File jettyRunnerJar) throws IOException
+    Service(int controlPort, File libDirectory, File logDirectory, String jettyRunnerJar) throws IOException
     {
         this.serverSocket = new ServerSocket(controlPort);
         this.libDirectory = libDirectory;
         this.logDirectory = logDirectory;
-        this.jettyRunnerJar = jettyRunnerJar;
+
+        if (jettyRunnerJar!=null)
+        {
+            this.jettyRunnerJar = new File(jettyRunnerJar);
+        }
 
         assertWritableDirectory(libDirectory);
         assertWritableDirectory(logDirectory);
 
-        if (!jettyRunnerJar.canRead() || !jettyRunnerJar.isFile())
-        {
-            throw new IllegalArgumentException("not readable: "+jettyRunnerJar);
-        }
+        mustBeReadableFile(this.jettyRunnerJar);
 
         log=System.out;
     }
@@ -71,6 +77,9 @@ public class Service implements Runnable
         String libDirectory   = systemPropertyOrEnvironment("LIB_DIRECTORY"   , null);
         String logDirectory   = systemPropertyOrEnvironment("LOG_DIRECTORY"   , null);
         String jettyRunnerJar = systemPropertyOrEnvironment("JETTY_RUNNER_JAR", null);
+
+        String jettyJmxJar = systemPropertyOrEnvironment("JETTY_JMX_JAR", null);
+        String jettyJmxXml = systemPropertyOrEnvironment("JETTY_JMX_XML", null);
 
         {
             Iterator<String> i = Arrays.asList(args).iterator();
@@ -98,9 +107,17 @@ public class Service implements Runnable
                 {
                     controlPort=argument;
                 }
-                else if (flag.contains("-jar"))
+                else if (flag.contains("-runner-jar"))
                 {
                     jettyRunnerJar=argument;
+                }
+                else if (flag.contains("-jmx-jar"))
+                {
+                    jettyJmxJar=argument;
+                }
+                else if (flag.contains("-jmx-xml"))
+                {
+                    jettyJmxXml=argument;
                 }
                 else
                 {
@@ -115,7 +132,7 @@ public class Service implements Runnable
             if (controlPort   ==null) die("controlPort is unspecified"   +usage);
             if (logDirectory  ==null) die("logDirectory is unspecified"  +usage);
             if (libDirectory  ==null) die("libDirectory is unspecified"  +usage);
-            if (jettyRunnerJar==null) die("jettyRunnerJar is unspecified"+usage);
+            // (jettyRunnerJar==null) die("jettyRunnerJar is unspecified"+usage);
         }
 
         System.err.print("Control Port : "); System.err.println(controlPort );
@@ -128,12 +145,36 @@ public class Service implements Runnable
                     Integer.parseInt(controlPort),
                     new File(libDirectory),
                     new File(logDirectory),
-                    new File(jettyRunnerJar)
+                    jettyRunnerJar
             );
+
+            if (jettyJmxJar!=null)
+            {
+                mustBeReadableFile(service.jettyJmxJar = new File(jettyJmxJar));
+            }
+
+            if (jettyJmxXml!=null)
+            {
+                mustBeReadableFile(service.jettyJmxXml = new File(jettyJmxXml));
+            }
+
             service.run();
         } catch (Throwable t) {
             t.printStackTrace();
             System.exit(2);
+        }
+    }
+
+    private static
+    void mustBeReadableFile(File file)
+    {
+        if (file==null)
+        {
+            throw new IllegalArgumentException("specified file cannot be null");
+        }
+        if (!file.canRead() || !file.isFile())
+        {
+            throw new IllegalArgumentException("not readable: "+file);
         }
     }
 
@@ -263,6 +304,24 @@ public class Service implements Runnable
         return properties;
     }
 
+    private
+    Properties propertiesForService(int servicePort) throws IOException
+    {
+        return propertiesFromFile(configFileForServicePort(servicePort));
+    }
+
+    private
+    File configFileForServicePort(int servicePort)
+    {
+        return new File(libDirectory, servicePort+".config");
+    }
+
+    private
+    File warFileForServicePort(int servicePort)
+    {
+        return new File(libDirectory, servicePort+".war");
+    }
+
     /**
      * Re-reads the configuration file (which as a side effect ensures that it is sufficient to start the service),
      * and activates the servlet on the specified port.
@@ -272,8 +331,8 @@ public class Service implements Runnable
     private
     int actuallyLaunchServlet(int servicePort) throws IOException
     {
-        File configFile=new File(libDirectory, servicePort+".config");
-        File warFile   =new File(libDirectory, servicePort+".war"   );
+        File configFile=configFileForServicePort(servicePort);
+        File warFile   =warFileForServicePort(servicePort);
 
         Properties p=propertiesFromFile(configFile);
 
@@ -307,10 +366,27 @@ public class Service implements Runnable
 
         if ((arg=p.getProperty(JMX_PORT.toString()))!=null)
         {
-            //todo...
+            sb.append(" -Dcom.sun.management.jmxremote.port=").append(arg);
+            sb.append(" -Dcom.sun.management.jmxremote.authenticate=false");
+            sb.append(" -Dcom.sun.management.jmxremote.ssl=false");
         }
 
-        sb.append(" -jar ").append(jettyRunnerJar.getCanonicalPath());
+        if (jettyJmxJar!=null && jettyJmxJar.exists())
+        {
+            sb.append(" -cp ").append(jettyJmxJar).append(':').append(jettyRunnerJar);
+            sb.append(" org.mortbay.jetty.runner.Runner");
+        }
+        else
+        {
+            sb.append(" -jar ").append(jettyRunnerJar);
+        }
+
+        sb.append(" --stats unsecure");
+
+        if (jettyJmxXml!=null && jettyJmxXml.exists())
+        {
+            sb.append(" --config ").append(jettyJmxXml);
+        }
 
         if ((arg=p.getProperty(SERVICE_PORT.toString()))!=null)
         {
@@ -603,12 +679,129 @@ public class Service implements Runnable
         {
             doLaunchCommand(args, in, out, numFiles);
         }
+        else if (command.equals("stop"))
+        {
+            doStopCommand(args, in, out);
+        }
         else
         {
             String message="Unknown command: "+command;
             out.println(message);
             log.println(message);
         }
+    }
+
+    private
+    void doStopCommand(List<String> args, ObjectInputStream in, PrintStream out) throws IOException
+    {
+        String port=null;
+        String path=null;
+        String name=null;
+        String wait=null;
+
+        Iterator<String> i=args.iterator();
+
+        while (i.hasNext())
+        {
+            String flag=i.next();
+            String argument;
+
+            try {
+                argument=i.next();
+            } catch (NoSuchElementException e) {
+                throw new IllegalArgumentException(flag+" requires one argument", e);
+            }
+
+            if (flag.contains("-port"))
+            {
+                port=argument;
+            }
+            else if (flag.contains("-name"))
+            {
+                name=argument;
+            }
+            else if (flag.contains("-path"))
+            {
+                path=argument;
+            }
+            else if (flag.contains("-wait"))
+            {
+                wait=argument;
+            }
+            else
+            {
+                String message="Unknown flag: "+flag;
+                log.println(message);
+                out.println(message);
+                return;
+            }
+        }
+
+        if (port==null)
+        {
+            String message="Stop command requires port to be specified";
+            log.println(message);
+            out.println(message);
+            return;
+        }
+
+        if (name!=null || path!=null)
+        {
+            String message="Stop command presently only supports stop-by-path";
+            log.println(message);
+            out.println(message);
+            return;
+        }
+
+        int servicePort=Integer.parseInt(port);
+
+        Properties p = propertiesForService(servicePort);
+
+        int pid=pid(p);
+
+        int jmxPort=Integer.parseInt(p.getProperty(JMX_PORT.toString()));
+
+        log.println("pid="+pid+", jmx="+jmxPort);
+
+        if ( pid<=1 || !isRunning(p))
+        {
+            log.println("Already terminated?");
+            out.println("GOOD\nServer is already shutdown or dead");
+            return;
+        }
+
+        try {
+
+            JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
+
+            JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort);
+
+            if (trueish(wait))
+            {
+                log.println("waiting for termination of pid: "+pid);
+                while (isRunning(p))
+                {
+                    log.println("still running: "+pid);
+                    Thread.sleep(250);
+                }
+            }
+
+            out.println("GOOD\nShutdown command has been sent");
+
+            p.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+            writeProperties(p, configFileForServicePort(servicePort));
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+            out.println(t.toString());
+        }
+    }
+
+    private boolean trueish(String s)
+    {
+        if (s==null || s.length()==0) return false;
+        char c=s.charAt(0);
+        return (c=='t' || c=='T' || c=='1' || c=='y' || c=='Y');
     }
 
     private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
@@ -725,8 +918,8 @@ public class Service implements Runnable
 
         long bytes=in.readLong();
 
-        File warFile   =new File(libDirectory, servicePort+".war");
-        File configFile=new File(libDirectory, servicePort+".config");
+        File warFile   =warFileForServicePort(servicePort);
+        File configFile=configFileForServicePort(servicePort);
 
         log.println("receiving: "+originalFilename+" "+bytes+" bytes => "+warFile);
 
