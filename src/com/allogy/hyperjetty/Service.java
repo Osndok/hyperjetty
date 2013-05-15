@@ -888,6 +888,10 @@ public class Service implements Runnable
         String dry=null;
         String version=null;
 
+        String heapMemory=null;
+        String permMemory=null;
+        String stackMemory=null;
+
         Iterator<String> i=args.iterator();
 
         while (i.hasNext())
@@ -918,6 +922,18 @@ public class Service implements Runnable
             else if (flag.contains("-version"))
             {
                 version=argument;
+            }
+            else if (flag.contains("-heap"))
+            {
+                heapMemory=argument;
+            }
+            else if (flag.contains("-perm"))
+            {
+                permMemory=argument;
+            }
+            else if (flag.contains("-stack"))
+            {
+                stackMemory=argument;
             }
             else
             {
@@ -1038,6 +1054,21 @@ public class Service implements Runnable
         maybeSet(p, HEAP_SIZE , "600m"); // -Xmx
         maybeSet(p, PERM_SIZE , "512m"); // -XX:MaxPermSize=
         maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
+
+        if (heapMemory!=null)
+        {
+            p.setProperty(HEAP_SIZE.toString(), heapMemory);
+        }
+
+        if (permMemory!=null)
+        {
+            p.setProperty(PERM_SIZE.toString(), permMemory);
+        }
+
+        if (stackMemory!=null)
+        {
+            p.setProperty(STACK_SIZE.toString(), stackMemory);
+        }
 
         maybeSet(p, PID, "-1");
 
@@ -1322,6 +1353,7 @@ public class Service implements Runnable
                 }
 
                 out.println(line.toString());
+                line.setLength(0);
             }
         }
 
