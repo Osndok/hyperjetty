@@ -271,8 +271,13 @@ public class Service implements Runnable
             {
                 try {
                     Properties properties=propertiesFromFile(file);
+                    int pid=pid(properties);
 
-                    if (isRunning(properties))
+                    if (pid<=1)
+                    {
+                        log.println("Was stopped: "+file+" ("+pid+")");
+                    }
+                    else if (isRunning(properties))
                     {
                         log.println("Already running: "+file);
                     }
@@ -587,7 +592,12 @@ public class Service implements Runnable
     boolean isRunning(Properties properties)
     {
         int pid=pid(properties);
+        return isRunning(pid);
+    }
 
+    private
+    boolean isRunning(int pid)
+    {
         if (pid<0)
         {
             ///!!!: bug: setting the pid<=1 should indicate that the servlet should *NOT* be restarted automatically
