@@ -5,5 +5,9 @@ export LIB_DIRECTORY=/tmp/hyperjetty-$USER
 export LOG_DIRECTORY=$LIB_DIRECTORY
 export JETTY_RUNNER_JAR=lib/jetty-runner.jar
 
-exec java -cp out/production/hyperjetty com.allogy.hyperjetty.Service "$@"
+OPTIONS="-Dvisualvm.display.name=Jetty-Hypervisor"
+OPTIONS="$OPTIONS -Xmx33m"
+OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
+
+exec java $OPTIONS -cp out/production/hyperjetty com.allogy.hyperjetty.Service "$@"
 
