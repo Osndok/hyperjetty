@@ -1220,54 +1220,94 @@ public class Service implements Runnable
     private
     Filter getFilter(List<String> args) throws IOException
     {
-        String port=null;
-        String path=null;
-        String name=null;
-        String version=null;
-
-        boolean allFlagPresent=false;
-
-        String header="true";
+        Filter root=new Filter();
+        Filter building=root;
 
         Iterator<String> i=args.iterator();
 
         while (i.hasNext())
         {
             String flag=i.next();
+            String argument=null;
 
-            if (flag.contains("-all"))
             {
-                allFlagPresent=true;
+                int equals=flag.indexOf('=');
+                if (equals > 0)
+                {
+                    argument=flag.substring(equals+1);
+                    flag=flag.substring(0, equals);
+                    //log.println("split: flag="+flag+" & arg="+argument);
+                }
+            }
+
+            if (flag.endsWith("-all"))
+            {
+                building.explicitMatchAll=true;
                 continue;
             }
 
-            String argument;
-
-            try {
-                argument=i.next();
-            } catch (NoSuchElementException e) {
-                throw new IllegalArgumentException(flag+" requires one argument", e);
+            if (flag.endsWith("-or"))
+            {
+                building=building.or();
+                continue;
             }
 
-            if (flag.contains("-port"))
+            if (flag.endsWith("-except") || flag.endsWith("-and-not") || flag.endsWith("-unless"))
             {
-                port=argument;
+                building=building.andNot();
+                continue;
             }
-            else if (flag.contains("-name"))
+
+            if (flag.endsWith("-all-but"))
             {
-                name=argument;
+                building.explicitMatchAll=true;
+                building=building.andNot();
+                continue;
             }
-            else if (flag.contains("-path"))
+
+            //------------
+            // A hack to accept entries like --not-port 123 & --except-name bob
+            Filter filter=building;
+
+            if (flag.contains("-not-") || flag.contains("-except-"))
             {
-                path=argument;
+                filter=filter.andNot();
             }
-            else if (flag.contains("-version"))
+
+            //------------
+
+            if (argument==null)
             {
-                version=argument;
+                try {
+                    argument=i.next();
+                } catch (NoSuchElementException e) {
+                    throw new IllegalArgumentException(flag+" requires one argument", e);
+                }
             }
-            else if (flag.contains("-header"))
+
+            if (flag.endsWith("-port"))
             {
-                header=argument;
+                filter.port(argument);
+            }
+            else if (flag.endsWith("-name"))
+            {
+                filter.name(argument);
+            }
+            else if (flag.endsWith("-path"))
+            {
+                filter.path(argument);
+            }
+            else if (flag.endsWith("-pid"))
+            {
+                filter.pid(argument);
+            }
+            else if (flag.endsWith("-version"))
+            {
+                filter.version(argument);
+            }
+            else if (flag.contains("-with-"))
+            {
+                throw new UnsupportedOperationException("options not implemented");
             }
             else
             {
@@ -1275,14 +1315,7 @@ public class Service implements Runnable
             }
         }
 
-        Filter retval=new Filter(port, path, name, version);
-
-        if (allFlagPresent)
-        {
-            retval.explicitMatchAll=true;
-        }
-
-        return retval;
+        return root;
 
     }
 
