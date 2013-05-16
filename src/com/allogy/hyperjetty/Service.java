@@ -16,6 +16,7 @@ import static com.allogy.hyperjetty.ServletProps.NAME;
 import static com.allogy.hyperjetty.ServletProps.PATH;
 import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
+import static com.allogy.hyperjetty.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
@@ -556,11 +557,21 @@ public class Service implements Runnable
     private
     String logFileBaseFromProperties(Properties p)
     {
-        String appName=p.getProperty(NAME.toString(), "no-name");
-        String portNumber=p.getProperty(SERVICE_PORT.toString(), "no-port");
-        String basename=niceFileCharactersOnly(appName+"-"+portNumber);
+        if (falseish(p, PORT_NUMBER_IN_LOG_FILENAME))
+        {
+            String appName=p.getProperty(NAME.toString(), "no-name");
+            String basename=niceFileCharactersOnly(appName);
 
-        return new File(logDirectory, basename).toString();
+            return new File(logDirectory, basename).toString();
+        }
+        else
+        {
+            String appName=p.getProperty(NAME.toString(), "no-name");
+            String portNumber=p.getProperty(SERVICE_PORT.toString(), "no-port");
+            String basename=niceFileCharactersOnly(appName+"-"+portNumber);
+
+            return new File(logDirectory, basename).toString();
+        }
     }
 
     private
@@ -736,13 +747,31 @@ public class Service implements Runnable
             log.println(numFiles+" file(s) coming with "+command+" command");
         }
 
+        // ------------------------------------------- CLIENT COMMANDS --------------------------------------------
+
         if (command.equals("ping"))
         {
             out.print("GOOD\npong\n");
         }
+        else if (command.equals("access-log"))
+        {
+            dumpLogFileNames(getFilter(args), out, ".access");
+        }
         else if (command.equals("launch"))
         {
             doLaunchCommand(args, in, out, numFiles);
+        }
+        else if (command.equals("log"))
+        {
+            dumpLogFileNames(getFilter(args), out, ".log");
+        }
+        else if (command.equals("nginx-routing"))
+        {
+            dumpNginxRoutingTable(getFilter(args), out);
+        }
+        else if (command.equals("remove"))
+        {
+            doRemoveCommand(getFilter(args), out);
         }
         else if (command.equals("start"))
         {
@@ -761,6 +790,114 @@ public class Service implements Runnable
             String message="Unknown command: "+command;
             out.println(message);
             log.println(message);
+        }
+        // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+    }
+
+    private
+    void dumpNginxRoutingTable(Filter filter, PrintStream out) throws IOException
+    {
+        int    tabs = Integer.parseInt(filter.getOption("tabs", "2"));
+        String host = filter.getOption("host", "127.0.0.1");
+
+        // http://wiki.nginx.org/HttpUpstreamModule ("server" sub-section)
+        String weight       = filter.getOption("weight"      , null);
+        String max_fails    = filter.getOption("max-fails"   , null);
+        String fail_timeout = filter.getOption("fail-timeout", null);
+        String down         = filter.getOption("down"        , null);
+        String backup       = filter.getOption("backup"      , null);
+
+        boolean alwaysDown=false;
+        boolean downIfNotRunning=false;
+
+        if (down!=null)
+        {
+            if (down.equals("auto"))
+            {
+                downIfNotRunning=true;
+            }
+            if (down.equals("true"))
+            {
+                alwaysDown=true;
+            }
+        }
+
+        List<Properties> matchedProperties = propertiesFromMatchingConfigFiles(filter);
+
+        if (matchedProperties.isEmpty())
+        {
+            String message = "no matching servlets";
+            out.println(message);
+            log.println(message);
+            return;
+        }
+
+        out.println("GOOD");
+
+        for (Properties properties : matchedProperties)
+        {
+            String servicePort=properties.getProperty(SERVICE_PORT.toString());
+            for (int i=0; i<tabs; i++)
+            {
+                out.print("\t");
+            }
+            out.print(host);
+            out.print(':');
+            out.print(servicePort);
+
+            if (weight!=null)
+            {
+                out.print(" weight=");
+                out.print(weight);
+            }
+
+            if (max_fails != null)
+            {
+                out.print(" max_fails=");
+                out.print(max_fails);
+            }
+
+            if (fail_timeout != null)
+            {
+                out.print(" fail_timeout=");
+                out.print(fail_timeout);
+            }
+
+            if (backup != null)
+            {
+                out.print(" backup");
+            }
+
+            if (alwaysDown || (downIfNotRunning && !isRunning(properties)))
+            {
+                out.print(" down");
+            }
+
+            out.println(';');
+        }
+
+    }
+
+    private
+    void dumpLogFileNames(Filter filter, PrintStream out, String suffix) throws IOException
+    {
+        out.println("GOOD");
+
+        List<Properties> matchedProperties = propertiesFromMatchingConfigFiles(filter);
+
+        if (matchedProperties.isEmpty())
+        {
+            String message = "no matching servlets";
+            out.println(message);
+            log.println(message);
+            return;
+        }
+
+        for (Properties properties : matchedProperties)
+        {
+            String filename = logFileBaseFromProperties(properties) + suffix;
+            out.println(filename);
+            log.println(filename);
         }
     }
 
@@ -797,6 +934,61 @@ public class Service implements Runnable
         }
 
         successOrFailureReport("stopped", total, success, failures, out);
+    }
+
+    private
+    void doRemoveCommand(Filter filter, PrintStream out) throws IOException
+    {
+        if (filter.implicitlyMatchesEverything())
+        {
+            out.println("remove command requires some restrictions or an explicit '--all' flag");
+            return;
+        }
+
+        int total=0;
+        int success=0;
+
+        //List<String> pidsToWaitFor;
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+        {
+            total++;
+            String name=humanReadable(properties);
+
+            try {
+                int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+
+                File configFile=configFileForServicePort(servicePort);
+
+                if (!configFile.exists())
+                {
+                    throw new FileNotFoundException(configFile.toString());
+                }
+
+                File warFile=warFileForServicePort(servicePort);
+
+                if (!warFile.exists())
+                {
+                    throw new FileNotFoundException(warFile.toString());
+                }
+
+                log.println("stopping: "+name);
+                int pid=doStopCommand(properties);
+
+                configFile.delete();
+                warFile.delete();
+
+                success++;
+            } catch (Throwable t) {
+                t.printStackTrace();
+                String message="failed to stop & remove '"+name+"': "+t.toString();
+                failures.add(message);
+                log.println(message);
+            }
+        }
+
+        successOrFailureReport("removed", total, success, failures, out);
     }
 
     private
@@ -924,11 +1116,22 @@ public class Service implements Runnable
         }
     }
 
-    private boolean trueish(String s)
+    //NB: trueish & falseish are not complementary (they both return false for NULL or unknown)
+    private boolean trueish(Properties p, ServletProps key)
     {
+        String s=p.getProperty(key.toString());
         if (s==null || s.length()==0) return false;
         char c=s.charAt(0);
         return (c=='t' || c=='T' || c=='1' || c=='y' || c=='Y');
+    }
+
+    //NB: trueish & falseish are not complementary (they both return false for NULL or unknown)
+    private boolean falseish(Properties p, ServletProps key)
+    {
+        String s=p.getProperty(key.toString());
+        if (s==null || s.length()==0) return false;
+        char c=s.charAt(0);
+        return (c=='f' || c=='F' || c=='0' || c=='n' || c=='N');
     }
 
     private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
@@ -960,6 +1163,8 @@ public class Service implements Runnable
         String permMemory=null;
         String stackMemory=null;
 
+        String portNumberInLogFilename=null;
+
         String returnValue="port";
 
         Iterator<String> i=args.iterator();
@@ -967,12 +1172,27 @@ public class Service implements Runnable
         while (i.hasNext())
         {
             String flag=i.next();
-            String argument;
-            try {
-                argument=i.next();
-            } catch (NoSuchElementException e) {
-                throw new IllegalArgumentException(flag+" requires one argument", e);
+            String argument=null;
+
+            {
+                int equals=flag.indexOf('=');
+                if (equals > 0)
+                {
+                    argument=flag.substring(equals+1);
+                    flag=flag.substring(0, equals);
+                    //log.println("split: flag="+flag+" & arg="+argument);
+                }
             }
+
+            if (argument==null)
+            {
+                try {
+                    argument=i.next();
+                } catch (NoSuchElementException e) {
+                    throw new IllegalArgumentException(flag+" requires one argument", e);
+                }
+            }
+
             if (flag.contains("-war"))
             {
                 war=argument;
@@ -1008,6 +1228,10 @@ public class Service implements Runnable
             else if (flag.contains("-return"))
             {
                 returnValue=argument;
+            }
+            else if (flag.endsWith("-port-based-logs") || flag.endsWith("-portBasedLogs"))
+            {
+                portNumberInLogFilename=argument;
             }
             else
             {
@@ -1116,6 +1340,11 @@ public class Service implements Runnable
         if (version!=null)
         {
             maybeSet(p, VERSION, version);
+        }
+
+        if (portNumberInLogFilename!=null)
+        {
+            p.setProperty(PORT_NUMBER_IN_LOG_FILENAME.toString(), portNumberInLogFilename);
         }
 
         maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
@@ -1314,7 +1543,9 @@ public class Service implements Runnable
             }
             else if (flag.contains("-with-"))
             {
-                throw new UnsupportedOperationException("options not implemented");
+                String optionName=flagToOptionName(flag);
+                log.println("* option: "+optionName+" = "+argument);
+                filter.option(optionName, argument);
             }
             else
             {
@@ -1324,6 +1555,20 @@ public class Service implements Runnable
 
         return root;
 
+    }
+
+    /**
+     * given "--with-host" or "-with-host" return "host"
+     */
+    private
+    String flagToOptionName(String flag)
+    {
+        int hypen=flag.indexOf("-", 3);
+        if (hypen<0)
+        {
+            throw new IllegalArgumentException("does not look like an option flag: "+flag);
+        }
+        return flag.substring(hypen+1);
     }
 
     private

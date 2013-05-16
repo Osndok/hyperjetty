@@ -1,5 +1,6 @@
 package com.allogy.hyperjetty;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -24,10 +25,22 @@ class Filter
     Set<String> name;
     Set<String> version;
 
+    HashMap<String, String> options;
+
     boolean explicitMatchAll;
 
     Filter orFilter;
     Filter andNotFilter;
+
+    /*
+    @Override
+    public
+    String toString()
+    {
+        StringBuilder sb=new StringBuilder();
+
+    }
+    */
 
     public
     Filter or()
@@ -97,6 +110,26 @@ class Filter
             this.version=new HashSet<String>();
         }
         addToOrList(this.version, version);
+    }
+
+    public
+    void option(String option, String value)
+    {
+        if (this.options==null)
+        {
+            this.options=new HashMap<String,String>();
+        }
+        this.options.put(option, value);
+    }
+
+    public
+    String getOption(String option, String _default)
+    {
+        if (this.options==null || !this.options.containsKey(option))
+        {
+            return _default;
+        }
+        return this.options.get(option);
     }
 
     private void addToOrList(Set<String> set, String s)
@@ -200,6 +233,7 @@ class Filter
                 path == null &&
                 name == null &&
                 version == null &&
+                andNotFilter != null &&
                 !explicitMatchAll
         );
     }

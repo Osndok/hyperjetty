@@ -16,5 +16,6 @@ public enum ServletProps
     HEAP_SIZE,
     STACK_SIZE,
     PERM_SIZE,
-    PID
+    PID,
+    PORT_NUMBER_IN_LOG_FILENAME
 }
