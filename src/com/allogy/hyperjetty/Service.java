@@ -735,6 +735,10 @@ public class Service implements Runnable
         {
             doLaunchCommand(args, in, out, numFiles);
         }
+        else if (command.equals("start"))
+        {
+            doStartCommand(getFilter(args), out);
+        }
         else if (command.equals("stop"))
         {
             doStopCommand(getFilter(args), out);
@@ -783,13 +787,56 @@ public class Service implements Runnable
             }
         }
 
-        successOrFailureReport(total, success, failures, out);
+        successOrFailureReport("stopped", total, success, failures, out);
     }
 
     private
-    void successOrFailureReport(int total, int success, List<String> failures, PrintStream out)
+    void doStartCommand(Filter filter, PrintStream out) throws IOException
     {
+        if (filter.implicitlyMatchesEverything())
+        {
+            out.println("start command requires some restrictions or an explicit '--all' flag");
+            return;
+        }
 
+        int total=0;
+        int success=0;
+
+        //List<String> pidsToWaitFor;
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+        {
+            total++;
+            String name=humanReadable(properties);
+
+            try {
+                if (isRunning(properties))
+                {
+                    String message="already running: "+name;
+                    log.println(message);
+                    failures.add(message);
+                }
+                else
+                {
+                    log.println("starting: "+name);
+                    actuallyLaunchServlet(Integer.parseInt(properties.getProperty(SERVICE_PORT.toString())));
+                }
+                success++;
+            } catch (Throwable t) {
+                t.printStackTrace();
+                String message="failed to start '"+name+"': "+t.toString();
+                failures.add(message);
+                log.println(message);
+            }
+        }
+
+        successOrFailureReport("started", total, success, failures, out);
+    }
+
+    private
+    void successOrFailureReport(String verbed, int total, int success, List<String> failures, PrintStream out)
+    {
         if (success==0)
         {
             if (total==0)
@@ -798,18 +845,23 @@ public class Service implements Runnable
             }
             else
             {
-                out.println("total failure");
+                out.println("total failure (x"+total+")");
             }
         }
         else if (success==total)
         {
             out.println("GOOD");
-            out.println("stopped "+total+" servlet(s)");
+            out.println(verbed+" "+total+" servlet(s)");
         }
         else
         {
             int percent=100*success/total;
-            out.print(percent + "% compliance\n\n");
+            out.println(percent + "% compliance, only "+verbed+" "+success+" of "+total+" matching servlet(s)");
+        }
+
+        if (!failures.isEmpty())
+        {
+            out.println();
             for (String s : failures)
             {
                 out.println(s);
