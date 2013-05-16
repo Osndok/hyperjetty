@@ -39,7 +39,7 @@ public class Service implements Runnable
 
     private File jettyRunnerJar=new File("lib/jetty-runner.jar");
     private File jettyJmxJar   =new File("lib/jetty-jmx.jar");
-    private File jettyJmxXml   =new File("lib/jetty-jmx.xml");
+    private File jettyJmxXml   =new File("etc/jetty-jmx.xml");
 
     public
     Service(int controlPort, File libDirectory, File logDirectory, String jettyRunnerJar) throws IOException
