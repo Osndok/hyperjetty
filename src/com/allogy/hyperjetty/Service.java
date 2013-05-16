@@ -1,5 +1,6 @@
 package com.allogy.hyperjetty;
 
+import javax.management.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -736,11 +737,11 @@ public class Service implements Runnable
         }
         else if (command.equals("stop"))
         {
-            doStopCommand(args, in, out);
+            doStopCommand(getFilter(args), out);
         }
         else if (command.equals("stats"))
         {
-            doStatsCommand(args, in, out);
+            doStatsCommand(getFilter(args), out);
         }
         else
         {
@@ -751,108 +752,106 @@ public class Service implements Runnable
     }
 
     private
-    void doStopCommand(List<String> args, ObjectInputStream in, PrintStream out) throws IOException
+    void doStopCommand(Filter filter, PrintStream out) throws IOException
     {
-        String port=null;
-        String path=null;
-        String name=null;
-        String wait=null;
-
-        Iterator<String> i=args.iterator();
-
-        while (i.hasNext())
+        if (filter.implicitlyMatchesEverything())
         {
-            String flag=i.next();
-            String argument;
+            out.println("stop command requires some restrictions or an explicit '--all' flag");
+            return;
+        }
+
+        int total=0;
+        int success=0;
+
+        //List<String> pidsToWaitFor;
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+        {
+            total++;
+            String name=humanReadable(properties);
 
             try {
-                argument=i.next();
-            } catch (NoSuchElementException e) {
-                throw new IllegalArgumentException(flag+" requires one argument", e);
+                log.println("stopping: "+name);
+                int pid=doStopCommand(properties);
+                success++;
+            } catch (Throwable t) {
+                t.printStackTrace();
+                String message="failed to stop '"+name+"': "+t.toString();
+                failures.add(message);
+                log.println(message);
             }
+        }
 
-            if (flag.contains("-port"))
+        successOrFailureReport(total, success, failures, out);
+    }
+
+    private
+    void successOrFailureReport(int total, int success, List<String> failures, PrintStream out)
+    {
+
+        if (success==0)
+        {
+            if (total==0)
             {
-                port=argument;
-            }
-            else if (flag.contains("-name"))
-            {
-                name=argument;
-            }
-            else if (flag.contains("-path"))
-            {
-                path=argument;
-            }
-            else if (flag.contains("-wait"))
-            {
-                wait=argument;
+                out.println("total failure, filter did not match any servlets");
             }
             else
             {
-                String message="Unknown flag: "+flag;
-                log.println(message);
-                out.println(message);
-                return;
+                out.println("total failure");
             }
         }
-
-        if (port==null)
+        else if (success==total)
         {
-            String message="Stop command requires port to be specified";
-            log.println(message);
-            out.println(message);
-            return;
+            out.println("GOOD");
+            out.println("stopped "+total+" servlet(s)");
         }
-
-        if (name!=null || path!=null)
+        else
         {
-            String message="Stop command presently only supports stop-by-path";
-            log.println(message);
-            out.println(message);
-            return;
+            int percent=100*success/total;
+            out.print(percent + "% compliance\n\n");
+            for (String s : failures)
+            {
+                out.println(s);
+            }
         }
+    }
 
-        int servicePort=Integer.parseInt(port);
+    private
+    String humanReadable(Properties properties)
+    {
+        String name=properties.getProperty(NAME.toString(), "no-name");
+        String port=properties.getProperty(SERVICE_PORT.toString(), "no-port");
+        String path=properties.getProperty(PATH.toString(), "/");
 
-        Properties p = propertiesForService(servicePort);
+        return name+"-"+port+"-"+path;
+    }
 
-        int pid=pid(p);
-
-        int jmxPort=Integer.parseInt(p.getProperty(JMX_PORT.toString()));
+    private
+    int doStopCommand(Properties properties) throws MalformedObjectNameException, ReflectionException,
+            IOException, InstanceNotFoundException, AttributeNotFoundException, MBeanException, IntrospectionException
+    {
+        int pid=pid(properties);
+        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+        int jmxPort=Integer.parseInt(properties.getProperty(JMX_PORT.toString()));
 
         log.println("pid="+pid+", jmx="+jmxPort);
 
-        if ( pid<=1 || !isRunning(p))
+        if ( pid<=1 || !isRunning(properties))
         {
-            log.println("Already terminated?");
-            out.println("GOOD\nServer is already shutdown or dead");
-            return;
+            log.println("Already terminated? Don't have to stop this servlet.");
+            return -1;
         }
-
-        try {
-
+        else
+        {
             JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
 
             JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort);
 
-            if (trueish(wait))
-            {
-                log.println("waiting for termination of pid: "+pid);
-                while (isRunning(p))
-                {
-                    log.println("still running: "+pid);
-                    Thread.sleep(250);
-                }
-            }
+            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+            writeProperties(properties, configFileForServicePort(servicePort));
 
-            out.println("GOOD\nShutdown command has been sent");
-
-            p.setProperty(PID.toString(), SERVLET_STOPPED_PID);
-            writeProperties(p, configFileForServicePort(servicePort));
-
-        } catch (Throwable t) {
-            t.printStackTrace();
-            out.println(t.toString());
+            return pid;
         }
     }
 
@@ -1157,12 +1156,14 @@ public class Service implements Runnable
     }
 
     private
-    void doStatsCommand(List<String> args, ObjectInputStream in, PrintStream out) throws IOException
+    Filter getFilter(List<String> args) throws IOException
     {
         String port=null;
         String path=null;
         String name=null;
         String version=null;
+
+        boolean allFlagPresent=false;
 
         String header="true";
 
@@ -1171,6 +1172,13 @@ public class Service implements Runnable
         while (i.hasNext())
         {
             String flag=i.next();
+
+            if (flag.contains("-all"))
+            {
+                allFlagPresent=true;
+                continue;
+            }
+
             String argument;
 
             try {
@@ -1201,18 +1209,27 @@ public class Service implements Runnable
             }
             else
             {
-                String message="Unknown flag: "+flag;
-                log.println(message);
-                out.println(message);
-                return;
+                throw new IllegalArgumentException("Unknown command line argument/flag: "+flag);
             }
         }
 
-        Filter filter=new Filter(port, path, name, version);
+        Filter retval=new Filter(port, path, name, version);
 
+        if (allFlagPresent)
+        {
+            retval.explicitMatchAll=true;
+        }
+
+        return retval;
+
+    }
+
+    private
+    void doStatsCommand(Filter filter, PrintStream out) throws IOException
+    {
         out.println("GOOD");
 
-        if (trueish(header))
+        if (true)
         { //scope for A & B
 
             StringBuilder a=new StringBuilder();
@@ -1222,7 +1239,7 @@ public class Service implements Runnable
             // and print the predictably-sized fields first, then likely-to-be-small, then rest
             // PORT | LIFE | HEAP | PERM | VERSION | PATH | App-name
 
-            if (port==null)
+            if (filter.port==null)
             {
                 a.append(" Port  |");
                 b.append("-------+");
@@ -1235,7 +1252,7 @@ public class Service implements Runnable
             //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
             //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
 
-            if (version==null)
+            if (filter.version==null)
             {
                 a.append("| Version ");
                 b.append("+---------");
@@ -1243,7 +1260,7 @@ public class Service implements Runnable
                 //append("|   N/A   ");
             }
 
-            if (path==null)
+            if (filter.path==null)
             {
                 a.append("| Request Path ");
                 b.append("+--------------");
@@ -1252,7 +1269,7 @@ public class Service implements Runnable
                 //append("| /statements  ");
             }
 
-            if (name==null)
+            if (filter.name==null)
             {
                 a.append("| Application Name");
                 b.append("+----------------------");
@@ -1270,113 +1287,141 @@ public class Service implements Runnable
 
         StringBuilder line=new StringBuilder(200);
 
+        for (Properties p : propertiesFromMatchingConfigFiles(filter))
+        {
+            count++;
+
+            if (filter.port==null)
+            {
+                //append(" Port  |");
+                //append("-------+");
+                //append(" 10000 |");
+                line.append(' ');
+                line.append(String.format("%5s", p.getProperty(SERVICE_PORT.toString(), "Err")));
+                line.append(" |");
+            }
+
+            //append("  PID  | Life  |  Heap Usage   | PermGen Usage ");
+            //append("-------+-------+---------------+---------------");
+            //append(" 12345 | ALIVE |  100% of 999m |  100% of 999m ");
+            //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
+            //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
+            //append(" 12222 | ALIVE |    No JMX     |    No JMX     ");
+            int pid=pid(p);
+
+            line.append(' ');
+            line.append(String.format("%5d", pid));
+
+            if (pid<=1)
+            {
+                line.append(" | STOP  |    - N/A -    |    - N/A -    ");
+            }
+            else if (isRunning(pid))
+            {
+                String jmxString=p.getProperty(JMX_PORT.toString());
+                ServletMemoryUsage smu=null;
+
+                if (jmxString!=null) {
+                    try {
+                        int jmxPort=Integer.parseInt(jmxString);
+                        smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
+                    } catch (Throwable t) {
+                        //hide somehow?
+                    }
+                }
+                if (smu==null)
+                {
+                    line.append(" | ALIVE |    No JMX     |    No JMX     ");
+                }
+                else
+                {
+                    line.append(" | ALIVE |  ");
+                    line.append(smu.getHeapSummary());
+                    line.append(" |  ");
+                    line.append(smu.getPermGenSummary());
+                    line.append(' ');
+                }
+            } else {
+                line.append(" | DEAD  |    - N/A -    |    - N/A -    ");
+            }
+
+            if (filter.version==null)
+            {
+                //append("| Version ");
+                //append("+---------");
+                //append("| v0.3.31 ");
+                //append("|   N/A   ");
+                line.append("| ");
+                line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "N/A")));
+                line.append(' ');
+            }
+
+            if (filter.path==null)
+            {
+                //append("| Request Path ");
+                //append("+--------------");
+                //append("| /latest      ");
+                //append("| /wui         ");
+                //append("| /statements  ");
+                line.append("| ");
+                line.append(String.format("%-12s", p.getProperty(PATH.toString())));
+                line.append(" ");
+            }
+
+            if (filter.name==null)
+            {
+                //append("| Application Name");
+                //append("+----------------------");
+                //append("| capillary-wui\n");
+                //append("| android-distribution\n");
+                //append("| cantina-web\n");
+                line.append("| ");
+                line.append(p.getProperty(NAME.toString(), "N/A"));
+            }
+
+            out.println(line.toString());
+            line.setLength(0);
+        }
+
+        out.println();
+
+        String message="stats matched "+count+" servlets";
+        out.println(message);
+        log.println(message);
+    }
+
+    private
+    List<Properties> propertiesFromMatchingConfigFiles(Filter filter) throws IOException
+    {
+        List<Properties> retval=new ArrayList<Properties>();
         for (File file : libDirectory.listFiles())
         {
             if (!file.getName().endsWith(".config"))
             {
                 continue;
             }
-
             Properties p=propertiesFromFile(file);
-
             if (filter.matches(p))
             {
-                count++;
-
-                if (port==null)
-                {
-                    //append(" Port  |");
-                    //append("-------+");
-                    //append(" 10000 |");
-                    line.append(' ');
-                    line.append(String.format("%5s", p.getProperty(SERVICE_PORT.toString(), "Err")));
-                    line.append(" |");
-                }
-
-                //append("  PID  | Life  |  Heap Usage   | PermGen Usage ");
-                //append("-------+-------+---------------+---------------");
-                //append(" 12345 | ALIVE |  100% of 999m |  100% of 999m ");
-                //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
-                //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
-                //append(" 12222 | ALIVE |    No JMX     |    No JMX     ");
-                int pid=pid(p);
-
-                line.append(' ');
-                line.append(String.format("%5d", pid));
-
-                if (pid<=1)
-                {
-                    line.append(" | STOP  |    - N/A -    |    - N/A -    ");
-                }
-                else if (isRunning(pid))
-                {
-                    String jmxString=p.getProperty(JMX_PORT.toString());
-                    ServletMemoryUsage smu=null;
-
-                    if (jmxString!=null) {
-                        try {
-                            int jmxPort=Integer.parseInt(jmxString);
-                            smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
-                        } catch (Throwable t) {
-                            //hide somehow?
-                        }
-                    }
-                    if (smu==null)
-                    {
-                        line.append(" | ALIVE |    No JMX     |    No JMX     ");
-                    }
-                    else
-                    {
-                        line.append(" | ALIVE |  ");
-                        line.append(smu.getHeapSummary());
-                        line.append(" |  ");
-                        line.append(smu.getPermGenSummary());
-                        line.append(' ');
-                    }
-                } else {
-                    line.append(" | DEAD  |    - N/A -    |    - N/A -    ");
-                }
-
-                if (version==null)
-                {
-                    //append("| Version ");
-                    //append("+---------");
-                    //append("| v0.3.31 ");
-                    //append("|   N/A   ");
-                    line.append("| ");
-                    line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "N/A")));
-                    line.append(' ');
-                }
-
-                if (path==null)
-                {
-                    //append("| Request Path ");
-                    //append("+--------------");
-                    //append("| /latest      ");
-                    //append("| /wui         ");
-                    //append("| /statements  ");
-                    line.append("| ");
-                    line.append(String.format("%-12s", p.getProperty(PATH.toString())));
-                    line.append(" ");
-                }
-
-                if (name==null)
-                {
-                    //append("| Application Name");
-                    //append("+----------------------");
-                    //append("| capillary-wui\n");
-                    //append("| android-distribution\n");
-                    //append("| cantina-web\n");
-                    line.append("| ");
-                    line.append(p.getProperty(NAME.toString(), "N/A"));
-                }
-
-                out.println(line.toString());
-                line.setLength(0);
+                retval.add(p);
             }
         }
-
+        return retval;
     }
 
+    private
+    List<Properties> propertiesFromAllConfigFiles() throws IOException
+    {
+        List<Properties> retval=new ArrayList<Properties>();
+        for (File file : libDirectory.listFiles())
+        {
+            if (!file.getName().endsWith(".config"))
+            {
+                continue;
+            }
+            retval.add(propertiesFromFile(file));
+        }
+        return retval;
+    }
 
 }

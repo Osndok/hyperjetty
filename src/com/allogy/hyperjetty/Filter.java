@@ -12,10 +12,12 @@ import static com.allogy.hyperjetty.ServletProps.*;
 class Filter
 {
 
-    private final String port;
-    private final String path;
-    private final String name;
-    private final String version;
+    final String port;
+    final String path;
+    final String name;
+    final String version;
+
+    public boolean explicitMatchAll;
 
     public
     Filter(String port, String path, String name, String version)
@@ -73,4 +75,15 @@ class Filter
         return (value!=null && target.equals(value));
     }
 
+    public
+    boolean implicitlyMatchesEverything()
+    {
+        return (
+                port == null &&
+                path == null &&
+                name == null &&
+                version == null &&
+                !explicitMatchAll
+        );
+    }
 }
