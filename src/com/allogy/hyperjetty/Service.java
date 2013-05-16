@@ -404,7 +404,7 @@ public class Service implements Runnable
             sb.append(" -jar ").append(jettyRunnerJar);
         }
 
-        sb.append(" --stats unsecure");
+        sb.append(" --stats unsecure"); //starts a "/stats" servlet... probably harmless (minor overhead)
 
         if (jettyJmxXml!=null && jettyJmxXml.exists())
         {
@@ -717,15 +717,24 @@ public class Service implements Runnable
         //The first arg is the command
         String command=in.readUTF();
 
+        log.print("* command: ");
+        log.print(command);
+
         for (int i=1; i<numArgs; i++)
         {
             String arg=in.readUTF();
             args.add(arg);
+            log.print(' ');
+            log.print(arg);
         }
+        log.println();
 
         int numFiles=in.readInt();
 
-        log.println(numFiles+" file(s) coming with "+command+" command");
+        if (numFiles>0)
+        {
+            log.println(numFiles+" file(s) coming with "+command+" command");
+        }
 
         if (command.equals("ping"))
         {
@@ -743,7 +752,7 @@ public class Service implements Runnable
         {
             doStopCommand(getFilter(args), out);
         }
-        else if (command.equals("stats"))
+        else if (command.startsWith("stat")) //"status", "stats", "statistics", or even "stat" (like the unix function)
         {
             doStatsCommand(getFilter(args), out);
         }
@@ -898,7 +907,8 @@ public class Service implements Runnable
         {
             JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
 
-            JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort);
+            //JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort); hangs on RMI Reaper
+            Runtime.getRuntime().exec("kill "+pid); //still runs the shutdown hooks!!!
 
             properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
             writeProperties(properties, configFileForServicePort(servicePort));

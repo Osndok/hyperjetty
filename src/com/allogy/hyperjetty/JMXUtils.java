@@ -6,7 +6,6 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
-import java.lang.management.MemoryUsage;
 import java.net.MalformedURLException;
 import java.rmi.UnmarshalException;
 import java.util.Set;
@@ -101,7 +100,7 @@ class JMXUtils
         }
     }
 
-    private static boolean INTERPRET_FIRST_STOP_COMMAND_AS_JMX_DEBUG_DUMP =false;
+    private static boolean INTERPRET_FIRST_STOP_COMMAND_AS_JMX_DEBUG_DUMP = false;
 
     public static void tellJettyContainerToStopAtJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
             MBeanException, InstanceNotFoundException, ReflectionException, IntrospectionException,
@@ -164,7 +163,7 @@ class JMXUtils
         for (ObjectName objectName : objectNames)
         {
 
-            if (objectName.toString().startsWith("org.")) {
+            if (!objectName.toString().startsWith("org.")) {
                 continue;
             }
             /* /
@@ -206,5 +205,6 @@ class JMXUtils
     private static JMXServiceURL serviceUrlForPort(int jmxPort) throws MalformedURLException
     {
         return new JMXServiceURL("service:jmx:rmi:///jndi/rmi://localhost:"+jmxPort+"/jmxrmi");
+        //XXX: return new JMXServiceURL("service:jmx:jmxmp://localhost:"+jmxPort);
     }
 }
