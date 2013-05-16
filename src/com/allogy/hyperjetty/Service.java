@@ -1407,14 +1407,23 @@ public class Service implements Runnable
             line.append(' ');
             line.append(String.format("%5d", pid));
 
+            ServletMemoryUsage smu=null;
+
             if (pid<=1)
             {
-                line.append(" | STOP  |    - N/A -    |    - N/A -    ");
+                String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
+                String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+
+                line.append(" | STOP  |  ");
+                line.append(String.format("%12s", heap));
+                line.append(" |  ");
+                line.append(String.format("%12s", perm));
+                line.append(" ");
             }
             else if (isRunning(pid))
             {
                 String jmxString=p.getProperty(JMX_PORT.toString());
-                ServletMemoryUsage smu=null;
+
 
                 if (jmxString!=null) {
                     try {
@@ -1437,7 +1446,14 @@ public class Service implements Runnable
                     line.append(' ');
                 }
             } else {
-                line.append(" | DEAD  |    - N/A -    |    - N/A -    ");
+                String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
+                String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+
+                line.append(" | DEAD  |  ");
+                line.append(String.format("%12s", heap));
+                line.append(" |  ");
+                line.append(String.format("%12s", perm));
+                line.append(" ");
             }
 
             if (filter.version==null)
