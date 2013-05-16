@@ -195,6 +195,7 @@ class Filter
     boolean implicitlyMatchesEverything()
     {
         return (
+                pid  == null &&
                 port == null &&
                 path == null &&
                 name == null &&

@@ -898,10 +898,17 @@ public class Service implements Runnable
 
         log.println("pid="+pid+", jmx="+jmxPort);
 
-        if ( pid<=1 || !isRunning(properties))
+        if ( pid<=1)
         {
             log.println("Already terminated? Don't have to stop this servlet.");
             return -1;
+        }
+        else if (!isRunning(properties))
+        {
+            log.println("Stopping a dead process");
+            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+            writeProperties(properties, configFileForServicePort(servicePort));
+            return pid;
         }
         else
         {
