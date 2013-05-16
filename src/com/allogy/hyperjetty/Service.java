@@ -1229,11 +1229,11 @@ public class Service implements Runnable
                 //append(" 10000 |");
             }
 
-            a.append(" Life  |  Heap Usage   | PermGen Usage ");
-            b.append("-------+---------------+---------------");
-            //append(" ALIVE |  100% of 999m |  100% of 999m ");
-            //append(" DEAD  |   10% of   3g |   10% of   9m ");
-            //append(" STOP  |    - N/A -    |    - N/A -    ");
+            a.append("  PID  | Life  |  Heap Usage   | PermGen Usage ");
+            b.append("-------+-------+---------------+---------------");
+            //append(" 12345 | ALIVE |  100% of 999m |  100% of 999m ");
+            //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
+            //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
 
             if (version==null)
             {
@@ -1293,17 +1293,20 @@ public class Service implements Runnable
                     line.append(" |");
                 }
 
-                //append(" Life  |  Heap Usage   | PermGen Usage ");
-                //append("-------+---------------+---------------");
-                //append(" ALIVE |  100% of 999m |  100% of 999m ");
-                //append(" DEAD  |   10% of   3g |   10% of   9m ");
-                //append(" STOP  |    - N/A -    |    - N/A -    ");
-                //append(" ALIVE |    No JMX     |    No JMX     ");
+                //append("  PID  | Life  |  Heap Usage   | PermGen Usage ");
+                //append("-------+-------+---------------+---------------");
+                //append(" 12345 | ALIVE |  100% of 999m |  100% of 999m ");
+                //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
+                //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
+                //append(" 12222 | ALIVE |    No JMX     |    No JMX     ");
                 int pid=pid(p);
+
+                line.append(' ');
+                line.append(String.format("%5d", pid));
 
                 if (pid<=1)
                 {
-                    line.append(" STOP  |    - N/A -    |    - N/A -    ");
+                    line.append(" | STOP  |    - N/A -    |    - N/A -    ");
                 }
                 else if (isRunning(pid))
                 {
@@ -1320,18 +1323,18 @@ public class Service implements Runnable
                     }
                     if (smu==null)
                     {
-                        line.append(" ALIVE |    No JMX     |    No JMX     ");
+                        line.append(" | ALIVE |    No JMX     |    No JMX     ");
                     }
                     else
                     {
-                        line.append(" ALIVE |  ");
+                        line.append(" | ALIVE |  ");
                         line.append(smu.getHeapSummary());
                         line.append(" |  ");
                         line.append(smu.getPermGenSummary());
                         line.append(' ');
                     }
                 } else {
-                    line.append(" DEAD  |    - N/A -    |    - N/A -    ");
+                    line.append(" | DEAD  |    - N/A -    |    - N/A -    ");
                 }
 
                 if (version==null)
