@@ -755,7 +755,7 @@ public class Service implements Runnable
         {
             out.print("GOOD\npong\n");
         }
-        else if (command.equals("access-log"))
+        else if (command.startsWith("access-log"))
         {
             dumpLogFileNames(getFilter(args), out, ".access");
         }
@@ -763,9 +763,29 @@ public class Service implements Runnable
         {
             doLaunchCommand(args, in, out, numFiles);
         }
-        else if (command.equals("log"))
+        else if (command.startsWith("log"))
         {
             dumpLogFileNames(getFilter(args), out, ".log");
+        }
+        else if (command.startsWith("ls-pid"))
+        {
+            dumpSpecificKey(getFilter(args), out, PID);
+        }
+        else if (command.startsWith("ls-port"))
+        {
+            dumpSpecificKey(getFilter(args), out, SERVICE_PORT);
+        }
+        else if (command.startsWith("ls-jmx"))
+        {
+            dumpSpecificKey(getFilter(args), out, JMX_PORT);
+        }
+        else if (command.startsWith("ls-tag"))
+        {
+            dumpSpecificKey(getFilter(args), out, TAG);
+        }
+        else if (command.startsWith("ls-version"))
+        {
+            dumpSpecificKey(getFilter(args), out, VERSION);
         }
         else if (command.equals("nginx-routing"))
         {
@@ -798,6 +818,34 @@ public class Service implements Runnable
             log.println(message);
         }
         // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+    }
+
+    private
+    void dumpSpecificKey(Filter filter, PrintStream out, ServletProps key) throws IOException
+    {
+        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+
+        if (matches.isEmpty())
+        {
+            String message = "no matching servlets";
+            out.println(message);
+            log.println(message);
+            return;
+        }
+
+        String keyString=key.toString();
+
+        out.println("GOOD");
+
+        for (Properties p : matches)
+        {
+            String value=p.getProperty(keyString);
+            if (value!=null)
+            {
+                out.println(value);
+            }
+        }
+
     }
 
     private void doSetCommand(Filter matchingFilter, PrintStream out) throws IOException
