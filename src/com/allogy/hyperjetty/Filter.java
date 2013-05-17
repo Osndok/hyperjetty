@@ -67,7 +67,14 @@ class Filter
         {
             throw new IllegalArgumentException("expecting exactly one "+key+", but found "+set.size());
         }
-        properties.setProperty(key.toString(), value);
+        if (value==null || value.length()==0 || value.equals("null"))
+        {
+            properties.remove(key.toString());
+        }
+        else
+        {
+            properties.setProperty(key.toString(), value);
+        }
     }
 
     private

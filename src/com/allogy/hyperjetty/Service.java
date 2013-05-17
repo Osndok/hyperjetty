@@ -20,6 +20,7 @@ import static com.allogy.hyperjetty.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
+import static com.allogy.hyperjetty.ServletProps.TAG;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
 
 /**
@@ -1271,6 +1272,7 @@ public class Service implements Runnable
         String name=null;
         String path=null;
         String dry=null;
+        String tag=null;
         String version=null;
 
         String heapMemory=null;
@@ -1338,6 +1340,10 @@ public class Service implements Runnable
             else if (flag.contains("-stack"))
             {
                 stackMemory=argument;
+            }
+            else if (flag.endsWith("-tag"))
+            {
+                tag=argument;
             }
             else if (flag.contains("-return"))
             {
@@ -1461,11 +1467,24 @@ public class Service implements Runnable
             p.setProperty(PORT_NUMBER_IN_LOG_FILENAME.toString(), portNumberInLogFilename);
         }
 
+        if (tag!=null)
+        {
+            p.setProperty(TAG.toString(), tag);
+        }
+
         maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
         maybeSet(p, JMX_PORT, Integer.toString(jmxPort));
         maybeSet(p, ORIGINAL_WAR, war);
-        maybeSet(p, NAME, name);
-        maybeSet(p, PATH, path);
+
+        if (name!=null)
+        {
+            p.setProperty(NAME.toString(), name);
+        }
+
+        if (path!=null)
+        {
+            p.setProperty(PATH.toString(), path);
+        }
 
         //FROM: http://tapestry.apache.org/specific-errors-faq.html
         maybeSet(p, HEAP_SIZE , "600m"); // -Xmx
@@ -1615,7 +1634,7 @@ public class Service implements Runnable
                 continue;
             }
 
-            if (flag.endsWith("-where"))
+            if (flag.endsWith("-where") || flag.equals("where"))
             {
                 building=root.where();
                 continue;
@@ -1722,7 +1741,12 @@ public class Service implements Runnable
     private
     void doStatsCommand(Filter filter, PrintStream out) throws IOException
     {
+        List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
+
         out.println("GOOD");
+
+        boolean anyVersions=anyPropertyHas(matchingProperties, VERSION);
+        boolean anyTags    =anyPropertyHas(matchingProperties, TAG    );
 
         if (true)
         { //scope for A & B
@@ -1747,7 +1771,7 @@ public class Service implements Runnable
             //append(" 12333 | DEAD  |   10% of   3g |   10% of   9m ");
             //append("    -1 | STOP  |    - N/A -    |    - N/A -    ");
 
-            if (filter.version==null)
+            if (filter.version==null && anyVersions)
             {
                 a.append("| Version ");
                 b.append("+---------");
@@ -1762,6 +1786,16 @@ public class Service implements Runnable
                 //append("| /latest      ");
                 //append("| /wui         ");
                 //append("| /statements  ");
+            }
+
+            if (filter.tag==null && anyTags)
+            {
+                a.append("|     Tag     ");
+                b.append("+-------------");
+                //append("| production  ");
+                //append("| testing     ");
+                //append("| development ");
+                //append("| integration ");
             }
 
             if (filter.name==null)
@@ -1782,7 +1816,7 @@ public class Service implements Runnable
 
         StringBuilder line=new StringBuilder(200);
 
-        for (Properties p : propertiesFromMatchingConfigFiles(filter))
+        for (Properties p : matchingProperties)
         {
             count++;
 
@@ -1856,14 +1890,14 @@ public class Service implements Runnable
                 line.append(" ");
             }
 
-            if (filter.version==null)
+            if (filter.version==null && anyVersions)
             {
                 //append("| Version ");
                 //append("+---------");
                 //append("| v0.3.31 ");
                 //append("|   N/A   ");
                 line.append("| ");
-                line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "N/A")));
+                line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "")));
                 line.append(' ');
             }
 
@@ -1877,6 +1911,19 @@ public class Service implements Runnable
                 line.append("| ");
                 line.append(String.format("%-12s", p.getProperty(PATH.toString())));
                 line.append(" ");
+            }
+
+            if (filter.tag==null && anyTags)
+            {
+                //append("|     Tag     ");
+                //append("+-------------");
+                //append("| production  ");
+                //append("| testing     ");
+                //append("| development ");
+                //append("| integration ");
+                line.append("| ");
+                line.append(String.format("%-11s", p.getProperty(TAG.toString(), "")));
+                line.append(' ');
             }
 
             if (filter.name==null)
@@ -1899,6 +1946,22 @@ public class Service implements Runnable
         String message="stats matched "+count+" servlets";
         out.println(message);
         log.println(message);
+    }
+
+    private
+    boolean anyPropertyHas(List<Properties> matchingProperties, ServletProps key)
+    {
+        String keyString=key.toString();
+
+        for (Properties property : matchingProperties)
+        {
+            if (property.containsKey(keyString))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private
