@@ -7,15 +7,16 @@ package com.allogy.hyperjetty;
  */
 public enum ServletProps
 {
-    SERVICE_PORT,
+    HEAP_SIZE,
     JMX_PORT,
     NAME,
-    VERSION,
-    PATH,
     ORIGINAL_WAR,
-    HEAP_SIZE,
-    STACK_SIZE,
-    PERM_SIZE,
+    PATH,
     PID,
-    PORT_NUMBER_IN_LOG_FILENAME
+    PERM_SIZE,
+    PORT_NUMBER_IN_LOG_FILENAME,
+    SERVICE_PORT,
+    STACK_SIZE,
+    TAG,
+    VERSION
 }

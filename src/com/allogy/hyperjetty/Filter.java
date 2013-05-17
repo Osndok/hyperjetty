@@ -1,14 +1,15 @@
 package com.allogy.hyperjetty;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
+import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
+import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
 import static com.allogy.hyperjetty.ServletProps.NAME;
 import static com.allogy.hyperjetty.ServletProps.PATH;
+import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
+import static com.allogy.hyperjetty.ServletProps.TAG;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
 
 /**
@@ -19,11 +20,85 @@ import static com.allogy.hyperjetty.ServletProps.VERSION;
 class Filter
 {
 
-    Set<String> pid;
+    //Safe, no restart required
+    Set<String> name;
+    Set<String> tag;
+    Set<String> version;
+
+    //Unsafe, requires restart
     Set<String> port;
     Set<String> path;
-    Set<String> name;
-    Set<String> version;
+    Set<String> jmxPort;
+    Set<String> heap;
+    Set<String> perm;
+
+    //Unsettable, but can be used as a key
+    Set<String> pid;
+
+    public
+    void applySetOperationTo(Properties properties)
+    {
+        if (name!=null) setPropertyKeyToOnlySetEntry(properties, NAME, name);
+        if (tag !=null) setPropertyKeyToOnlySetEntry(properties, TAG , tag );
+        if (path!=null) setPropertyKeyToOnlySetEntry(properties, PATH, path);
+        if (heap!=null) setPropertyKeyToOnlySetEntry(properties, HEAP_SIZE, heap);
+        if (perm!=null) setPropertyKeyToOnlySetEntry(properties, PERM_SIZE, perm);
+        if (port!=null) setPropertyKeyToOnlySetEntry(properties, SERVICE_PORT, port);
+
+        if (jmxPort!=null) setPropertyKeyToOnlySetEntry(properties, JMX_PORT, jmxPort);
+        if (version!=null) setPropertyKeyToOnlySetEntry(properties, VERSION , version);
+
+        if (pid!=null)
+        {
+            throw new UnsupportedOperationException("cannot set pid (it is automatically set on launch)");
+        }
+    }
+
+    private
+    void setPropertyKeyToOnlySetEntry(Properties properties, ServletProps key, Set<String> set)
+    {
+        Iterator<String> i = set.iterator();
+        if (!i.hasNext())
+        {
+            throw new IllegalArgumentException("expecting exactly one "+key+", but found zero");
+        }
+        String value=i.next();
+        if (i.hasNext())
+        {
+            throw new IllegalArgumentException("expecting exactly one "+key+", but found "+set.size());
+        }
+        properties.setProperty(key.toString(), value);
+    }
+
+    private
+    boolean allMatchCriteriaAreNull()
+    {
+        return  pid  == null &&
+                heap == null &&
+                tag  == null &&
+                perm == null &&
+                port == null &&
+                path == null &&
+                name == null &&
+                version == null &&
+                jmxPort == null
+                ;
+    }
+
+    /*
+     * What features (if this is a "set" command) would require that the effected servlet(s) be restarted ?
+     */
+    public
+    boolean setRequiresServletRestart()
+    {
+        return  port != null ||
+                path != null ||
+                heap != null ||
+                perm != null ||
+                jmxPort !=null
+                ;
+    }
+
 
     HashMap<String, String> options;
 
@@ -31,6 +106,9 @@ class Filter
 
     Filter orFilter;
     Filter andNotFilter;
+
+    Filter whereFilter;
+    Filter kludgeSetFilter;
 
     /*
     @Override
@@ -53,6 +131,16 @@ class Filter
     }
 
     public
+    Filter where()
+    {
+        if (whereFilter==null)
+        {
+            whereFilter=new Filter();
+        }
+        return whereFilter;
+    }
+
+    public
     Filter andNot()
     {
         if (andNotFilter==null)
@@ -63,6 +151,26 @@ class Filter
     }
 
     public
+    void heap(String heap)
+    {
+        if (this.heap == null)
+        {
+            this.heap=new HashSet<String>();
+        }
+        addToOrList(this.heap, heap);
+    }
+
+    public
+    void jmx(String jmxPort)
+    {
+        if (this.jmxPort == null)
+        {
+            this.jmxPort=new HashSet<String>();
+        }
+        addToOrList(this.jmxPort, jmxPort);
+    }
+
+    public
     void pid(String pid)
     {
         if (this.pid==null)
@@ -70,6 +178,16 @@ class Filter
             this.pid=new HashSet<String>();
         }
         addToOrList(this.pid, pid);
+    }
+
+    public
+    void perm(String perm)
+    {
+        if (this.perm==null)
+        {
+            this.perm=new HashSet<String>();
+        }
+        addToOrList(this.perm, perm);
     }
 
     public
@@ -110,6 +228,16 @@ class Filter
             this.version=new HashSet<String>();
         }
         addToOrList(this.version, version);
+    }
+
+    public
+    void tag(String tag)
+    {
+        if (this.tag == null)
+        {
+            this.tag = new HashSet<String>();
+        }
+        addToOrList(this.tag, tag);
     }
 
     public
@@ -168,10 +296,36 @@ class Filter
             return true;
         }
 
+        //----------------------------------------------
+
+        if (heap!=null)
+        {
+            key=HEAP_SIZE.toString();
+            if (!matches(p, key, heap))
+            {
+                return false;
+            }
+        }
+        if (jmxPort!=null)
+        {
+            key=JMX_PORT.toString();
+            if (!matches(p, key, jmxPort))
+            {
+                return false;
+            }
+        }
         if (pid!=null)
         {
             key=PID.toString();
             if (!matches(p, key, pid))
+            {
+                return false;
+            }
+        }
+        if (perm!=null)
+        {
+            key=PERM_SIZE.toString();
+            if (!matches(p, key, perm))
             {
                 return false;
             }
@@ -196,6 +350,14 @@ class Filter
         {
             key=NAME.toString();
             if (!matches(p, key, name))
+            {
+                return false;
+            }
+        }
+        if (tag != null)
+        {
+            key= TAG.toString();
+            if (!matches(p, key, tag))
             {
                 return false;
             }
@@ -228,13 +390,15 @@ class Filter
     boolean implicitlyMatchesEverything()
     {
         return (
-                pid  == null &&
-                port == null &&
-                path == null &&
-                name == null &&
-                version == null &&
+                allMatchCriteriaAreNull() &&
                 andNotFilter != null &&
                 !explicitMatchAll
         );
     }
+
+    public boolean setCanOnlyBeAppliedToOnlyOneServlet()
+    {
+        return (port != null || jmxPort != null);
+    }
+
 }

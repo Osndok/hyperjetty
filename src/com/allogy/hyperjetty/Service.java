@@ -31,6 +31,7 @@ public class Service implements Runnable
 {
 
     private static final String SERVLET_STOPPED_PID = "-1";
+    private static final long RESTART_DELAY_MS = 20;
 
     private final File libDirectory;
     private final File logDirectory;
@@ -777,6 +778,10 @@ public class Service implements Runnable
         {
             doStartCommand(getFilter(args), out);
         }
+        else if (command.equals("set"))
+        {
+            doSetCommand(getFilter(args), out);
+        }
         else if (command.equals("stop"))
         {
             doStopCommand(getFilter(args), out);
@@ -792,6 +797,115 @@ public class Service implements Runnable
             log.println(message);
         }
         // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+    }
+
+    private void doSetCommand(Filter matchingFilter, PrintStream out) throws IOException
+    {
+        Filter setFilter=matchingFilter.kludgeSetFilter;
+
+        if (setFilter==null || matchingFilter.implicitlyMatchesEverything())
+        {
+            throw new UnsupportedOperationException("missing (or empty) where clause");
+        }
+
+        if (setFilter.implicitlyMatchesEverything())
+        {
+            throw new UnsupportedOperationException("missing (or empty) set clause");
+        }
+
+        List<Properties> matches = propertiesFromMatchingConfigFiles(matchingFilter);
+
+        if (matches.isEmpty())
+        {
+            String message = "no matching servlets";
+            out.println(message);
+            log.println(message);
+            return;
+        }
+
+        int total=matches.size();
+
+        if (setFilter.setCanOnlyBeAppliedToOnlyOneServlet() && total > 1)
+        {
+            throw new UnsupportedOperationException("requested set operation can only be applied to one servlet, but "+total+" matched");
+        }
+
+        int success=0;
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : matches)
+        {
+            String name=humanReadable(properties);
+            try {
+                doSetCommand(properties, setFilter);
+                success++;
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+                String message="cant actuate set command for "+name+": "+t.toString();
+                log.println(message);
+                failures.add(message);
+            }
+        }
+
+        successOrFailureReport("reconfigured", total, success, failures, out);
+    }
+
+    private
+    void doSetCommand(Properties newProperties, Filter setFilter) throws MalformedObjectNameException,
+            IntrospectionException, InstanceNotFoundException, IOException, ReflectionException,
+            AttributeNotFoundException, MBeanException, InterruptedException
+    {
+        Properties oldProperties = (Properties) newProperties.clone();
+        setFilter.applySetOperationTo(newProperties);
+
+        if (setFilter.port!=null)
+        {
+            /*
+            Restart the world... technically an edge case (b/c we use the service port as a primary key),
+            yet oddly simpler.
+             */
+            int oldServicePort= Integer.parseInt(oldProperties.getProperty(SERVICE_PORT.toString()));
+            int newServicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+
+            log.println("warn: changing primary port: "+oldServicePort+" -> "+newServicePort);
+            if (isRunning(oldProperties))
+            {
+                doStopCommand(oldProperties);
+                warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
+                //configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
+                writeProperties(newProperties, configFileForServicePort(newServicePort));
+                configFileForServicePort(oldServicePort).delete();
+                Thread.sleep(RESTART_DELAY_MS);
+                actuallyLaunchServlet(newServicePort);
+            }
+            else
+            {
+                log.println("servlet was not running, so it will not be running afterwards either");
+                warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
+                //configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
+                writeProperties(newProperties, configFileForServicePort(newServicePort));
+                configFileForServicePort(oldServicePort).delete();
+            }
+
+        }
+        else if (setFilter.setRequiresServletRestart() && isRunning(oldProperties))
+        {
+            log.println("servlet restart required");
+            int servicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+            doStopCommand(oldProperties);
+            writeProperties(newProperties, configFileForServicePort(servicePort));
+            Thread.sleep(RESTART_DELAY_MS);
+            actuallyLaunchServlet(servicePort);
+        }
+        else
+        {
+            log.println("servlet does NOT need to be restarted :-)");
+            int servicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+            writeProperties(newProperties, configFileForServicePort(servicePort));
+        }
+
     }
 
     private
@@ -1501,6 +1615,12 @@ public class Service implements Runnable
                 continue;
             }
 
+            if (flag.endsWith("-where"))
+            {
+                building=root.where();
+                continue;
+            }
+
             //------------
             // A hack to accept entries like --not-port 123 & --except-name bob
             Filter filter=building;
@@ -1521,7 +1641,15 @@ public class Service implements Runnable
                 }
             }
 
-            if (flag.endsWith("-port"))
+            if (flag.endsWith("-heap"))
+            {
+                filter.heap(argument);
+            }
+            else if (flag.endsWith("-jmx"))
+            {
+                filter.jmx(argument);
+            }
+            else if (flag.endsWith("-port"))
             {
                 filter.port(argument);
             }
@@ -1533,9 +1661,17 @@ public class Service implements Runnable
             {
                 filter.path(argument);
             }
+            else if (flag.endsWith("-perm"))
+            {
+                filter.perm(argument);
+            }
             else if (flag.endsWith("-pid"))
             {
                 filter.pid(argument);
+            }
+            else if (flag.endsWith("-tag"))
+            {
+                filter.tag(argument);
             }
             else if (flag.endsWith("-version"))
             {
@@ -1553,7 +1689,19 @@ public class Service implements Runnable
             }
         }
 
-        return root;
+        //We must straighten out the logical backwards-ness... "where" is the primary filter, if it exists
+        if (root.whereFilter!=null)
+        {
+            Filter primary=root.whereFilter;
+            Filter setFilter=root;
+            root.whereFilter=null;
+            primary.kludgeSetFilter=setFilter;
+            return primary;
+        }
+        else
+        {
+            return root;
+        }
 
     }
 
