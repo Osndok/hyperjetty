@@ -1357,47 +1357,47 @@ public class Service implements Runnable
                 }
             }
 
-            if (flag.contains("-war"))
+            if (flag.endsWith("war"))
             {
                 war=argument;
             }
-            else if (flag.contains("-name"))
+            else if (flag.endsWith("name"))
             {
                 name=argument;
             }
-            else if (flag.contains("-path"))
+            else if (flag.endsWith("path"))
             {
                 path=argument;
             }
-            else if (flag.contains("-dry"))
+            else if (flag.endsWith("dry"))
             {
                 dry=argument;
             }
-            else if (flag.contains("-version"))
+            else if (flag.endsWith("version"))
             {
                 version=argument;
             }
-            else if (flag.contains("-heap"))
+            else if (flag.endsWith("heap"))
             {
                 heapMemory=argument;
             }
-            else if (flag.contains("-perm"))
+            else if (flag.endsWith("perm"))
             {
                 permMemory=argument;
             }
-            else if (flag.contains("-stack"))
+            else if (flag.endsWith("stack"))
             {
                 stackMemory=argument;
             }
-            else if (flag.endsWith("-tag"))
+            else if (flag.endsWith("tag"))
             {
                 tag=argument;
             }
-            else if (flag.contains("-return"))
+            else if (flag.endsWith("return"))
             {
                 returnValue=argument;
             }
-            else if (flag.endsWith("-port-based-logs") || flag.endsWith("-portBasedLogs"))
+            else if (flag.endsWith("port-based-logs") || flag.endsWith("portBasedLogs"))
             {
                 portNumberInLogFilename=argument;
             }
@@ -1657,32 +1657,32 @@ public class Service implements Runnable
                 }
             }
 
-            if (flag.endsWith("-all"))
+            if (flag.endsWith("all"))
             {
                 building.explicitMatchAll=true;
                 continue;
             }
 
-            if (flag.endsWith("-or"))
+            if (flag.endsWith("or"))
             {
                 building=building.or();
                 continue;
             }
 
-            if (flag.endsWith("-except") || flag.endsWith("-and-not") || flag.endsWith("-unless"))
+            if (flag.endsWith("except") || flag.endsWith("and-not") || flag.endsWith("unless"))
             {
                 building=building.andNot();
                 continue;
             }
 
-            if (flag.endsWith("-all-but"))
+            if (flag.endsWith("all-but"))
             {
                 building.explicitMatchAll=true;
                 building=building.andNot();
                 continue;
             }
 
-            if (flag.endsWith("-where") || flag.equals("where"))
+            if (flag.endsWith("where"))
             {
                 building=root.where();
                 continue;
@@ -1692,7 +1692,7 @@ public class Service implements Runnable
             // A hack to accept entries like --not-port 123 & --except-name bob
             Filter filter=building;
 
-            if (flag.contains("-not-") || flag.contains("-except-"))
+            if (flag.contains("not-") || flag.contains("except-"))
             {
                 filter=filter.andNot();
             }
@@ -1708,43 +1708,43 @@ public class Service implements Runnable
                 }
             }
 
-            if (flag.endsWith("-heap"))
+            if (flag.endsWith("heap"))
             {
                 filter.heap(argument);
             }
-            else if (flag.endsWith("-jmx"))
+            else if (flag.endsWith("jmx") || flag.endsWith("jmx-port"))
             {
                 filter.jmx(argument);
             }
-            else if (flag.endsWith("-port"))
+            else if (flag.endsWith("port"))
             {
                 filter.port(argument);
             }
-            else if (flag.endsWith("-name"))
+            else if (flag.endsWith("name"))
             {
                 filter.name(argument);
             }
-            else if (flag.endsWith("-path"))
+            else if (flag.endsWith("path"))
             {
                 filter.path(argument);
             }
-            else if (flag.endsWith("-perm"))
+            else if (flag.endsWith("perm"))
             {
                 filter.perm(argument);
             }
-            else if (flag.endsWith("-pid"))
+            else if (flag.endsWith("pid"))
             {
                 filter.pid(argument);
             }
-            else if (flag.endsWith("-tag"))
+            else if (flag.endsWith("tag"))
             {
                 filter.tag(argument);
             }
-            else if (flag.endsWith("-version"))
+            else if (flag.endsWith("version"))
             {
                 filter.version(argument);
             }
-            else if (flag.contains("-with-"))
+            else if (flag.contains("with-"))
             {
                 String optionName=flagToOptionName(flag);
                 log.println("* option: "+optionName+" = "+argument);
