@@ -1412,7 +1412,7 @@ public class Service implements Runnable
 
         if (war==null)
         {
-            out.println("war-file not specified, use the '--war' flag to do so");
+            out.println("war-file not specified, use the '--war' flag to do so; --name & --path are also required ATM");
             return;
         }
 
