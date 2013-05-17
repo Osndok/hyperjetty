@@ -7,6 +7,8 @@ package com.allogy.hyperjetty;
  */
 public enum ServletProps
 {
+    DATE_CREATED,
+    DATE_STARTED,
     HEAP_SIZE,
     JMX_PORT,
     NAME,

@@ -10,6 +10,8 @@ import java.util.*;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
+import static com.allogy.hyperjetty.ServletProps.DATE_CREATED;
+import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
 import static com.allogy.hyperjetty.ServletProps.NAME;
@@ -481,6 +483,7 @@ public class Service implements Runnable
 
         int pid=Integer.parseInt(pidString);
 
+        tagPresentDate(p, DATE_STARTED);
         p.setProperty(PID.toString(), pidString);
 
         if (isRunning(p))
@@ -1556,6 +1559,7 @@ public class Service implements Runnable
 
         maybeSet(p, PID, "-1");
 
+        tagPresentDate(p, DATE_CREATED);
         writeProperties(p, configFile);
 
         portReservation.release();
@@ -1583,10 +1587,15 @@ public class Service implements Runnable
     }
 
     private
+    void tagPresentDate(Properties p, ServletProps key)
+    {
+        String value=iso_8601_ish.format(new Date());
+        p.setProperty(key.toString(), value);
+    }
+
+    private
     void writeProperties(Properties p, File configFile) throws IOException
     {
-
-
         FileOutputStream fos=new FileOutputStream(configFile);
         p.store(fos, "Written by hyperjetty service class");
         fos.close();
