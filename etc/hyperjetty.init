@@ -18,13 +18,14 @@ logfile=/var/log/hyperjetty/service.log
 pidfile=/var/run/$prog
 lockfile=/var/lock/subsys/$prog
 
-start() {
+start()
+{
     echo -n $"Starting $prog: "
     #daemon $exec... is not working? blocks shell.
     #retval=$?
-	if [ -s ${pidfile} ]; then
+	if status ; then
 		retval=1
-		echo -n "might already be running ?!?!" && warning
+		echo -n "$prog seems to be running already" && warning
 		echo
     else
 		nohup ${exec} > $logfile 2>&1 &
@@ -39,15 +40,17 @@ start() {
     return $retval
 }
 
-stop() {
+stop()
+{
     echo -n $"Stopping $prog: "
-	if [ -s ${pidfile} ]; then
+
+	if status; then
 		PID=$(cat ${pidfile})
 		kill $PID
 		rm -f ${pidfile}
 	else
 		retval=1
-		echo -n "might already be stopped ?!?!" && warning
+		echo -n "$prog already seems to be stopped" && warning
 		echo
 	fi
     #/usr/bin/hj shutdown
@@ -60,6 +63,25 @@ stop() {
 restart() {
     stop
     start
+}
+
+status()
+{
+	retval=1
+	if [ -s "${pidfile}" ]; then
+		PID=$(cat "${pidfile}")
+		if [ ! -e "/proc/$PID" ]; then
+			echo 2>&1 "$prog is dead, but subsystem is locked, pid was $PID"
+		elif grep -q java "/proc/$PID/cmdline" ; then
+			echo 2>&1 "$prog is running, pid = $PID"
+			retval=0
+		else
+			echo 2>&1 "pid $PID is running, but does not seem to be hyperjetty"
+		fi
+	else
+		echo 2>&1 "no pid file: ${pidfile}"
+	fi
+	return $retval
 }
 
 case "$1" in

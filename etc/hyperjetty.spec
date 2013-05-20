@@ -1,10 +1,11 @@
 
 Name:           hyperjetty
 Version:        alpha
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
+Vendor:         Allogy Interactive
 License:        Proprietary
 URL:            http://redmine.allogy.com/projects/hyperjetty
 
