@@ -15,13 +15,13 @@ import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
 import static com.allogy.hyperjetty.ServletProps.NAME;
+import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
 import static com.allogy.hyperjetty.ServletProps.PATH;
 import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
-import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
 import static com.allogy.hyperjetty.ServletProps.TAG;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
 
@@ -1351,6 +1351,13 @@ public class Service implements Runnable
                 }
             }
 
+            //most trailing "s"es can be ignored (except: "unless")
+            if (flag.endsWith("s") && !flag.endsWith("unless"))
+            {
+                flag=flag.substring(0, flag.length()-1);
+                log.println("trimming 's' from flag yields: "+flag);
+            }
+
             if (argument==null)
             {
                 try {
@@ -1664,6 +1671,13 @@ public class Service implements Runnable
                     flag=flag.substring(0, equals);
                     //log.println("split: flag="+flag+" & arg="+argument);
                 }
+            }
+
+            //most trailing "s"es can be ignored (except: "unless")
+            if (flag.endsWith("s") && !flag.endsWith("unless"))
+            {
+                flag=flag.substring(0, flag.length()-1);
+                log.println("trimming 's' from flag yields: "+flag);
             }
 
             if (flag.endsWith("all"))
