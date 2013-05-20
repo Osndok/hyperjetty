@@ -8,7 +8,6 @@ import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.lang.management.MemoryUsage;
 import java.net.MalformedURLException;
 import java.rmi.UnmarshalException;
 import java.util.Set;
@@ -47,6 +46,8 @@ class JMXUtils
 
                 retval.setHeapStats(memory.getHeapMemoryUsage());
                 retval.setPermGenStats(memory.getNonHeapMemoryUsage());
+                //memory.gc();
+                return retval;
             }
             catch (Throwable t)
             {
