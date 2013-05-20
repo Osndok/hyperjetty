@@ -383,7 +383,7 @@ class Filter
         if (tag != null)
         {
             key= TAG.toString();
-            if (!matches(p, key, tag))
+            if (!multiMatches(p, key, tag))
             {
                 return false;
             }
@@ -403,6 +403,32 @@ class Filter
         }
 
         return true;
+    }
+
+    /* SLOW! */
+    private
+    boolean multiMatches(Properties p, String key, Set<String> target)
+    {
+        String value=p.getProperty(key);
+
+        if (value==null)
+        {
+            return false;
+        }
+        else if (value.indexOf(',')>=0)
+        {
+            for (String s : value.split(",")) {
+                if (target.contains(s))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        else
+        {
+            return (target.contains(value));
+        }
     }
 
     private

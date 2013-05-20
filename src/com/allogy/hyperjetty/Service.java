@@ -784,7 +784,7 @@ public class Service implements Runnable
         }
         else if (command.startsWith("ls-tag"))
         {
-            dumpSpecificKey(getFilter(args), out, TAG);
+            dumpUniqueMultiKey(getFilter(args), out, TAG);
         }
         else if (command.startsWith("ls-version"))
         {
@@ -821,6 +821,51 @@ public class Service implements Runnable
             log.println(message);
         }
         // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+    }
+
+    private
+    void dumpUniqueMultiKey(Filter filter, PrintStream out, ServletProps key) throws IOException
+    {
+        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+
+        if (matches.isEmpty())
+        {
+            String message = "no matching servlets";
+            out.println(message);
+            log.println(message);
+            return;
+        }
+
+        String keyString=key.toString();
+        Set<String> values=new HashSet<String>();
+
+        for (Properties properties : matches)
+        {
+            String value=properties.getProperty(keyString);
+            if (value!=null)
+            {
+                if (value.indexOf(',')>=0)
+                {
+                    String[] multi=value.split(",");
+                    for (String s : multi) {
+                        values.add(s);
+                    }
+
+                }
+                else
+                {
+                    values.add(value);
+                }
+            }
+        }
+
+        out.println("GOOD");
+
+        for (String s : values)
+        {
+            out.println(s);
+        }
+
     }
 
     private
