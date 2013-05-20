@@ -1495,7 +1495,14 @@ public class Service implements Runnable
 
         if (numFiles!=1)
         {
-            out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
+            if (numFiles==0)
+            {
+                out.println("service side did not receive the war file, make sure it is reachable client side and that you have specified");
+            }
+            else
+            {
+                out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
+            }
             log.println("client supplied "+numFiles+" files");
             return;
         }
