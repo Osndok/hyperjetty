@@ -37,6 +37,7 @@ public class Service implements Runnable
     private static final long RESTART_DELAY_MS = 20;
 
     private final File libDirectory;
+    private final File etcDirectory;
     private final File logDirectory;
     private final ServerSocket serverSocket;
     private final PrintStream log;
@@ -46,10 +47,11 @@ public class Service implements Runnable
     private File jettyJmxXml   =new File("etc/jetty-jmx.xml");
 
     public
-    Service(int controlPort, File libDirectory, File logDirectory, String jettyRunnerJar) throws IOException
+    Service(int controlPort, File libDirectory, File etcDirectory, File logDirectory, String jettyRunnerJar) throws IOException
     {
         this.serverSocket = new ServerSocket(controlPort);
         this.libDirectory = libDirectory;
+        this.etcDirectory = etcDirectory;
         this.logDirectory = logDirectory;
 
         if (jettyRunnerJar!=null)
@@ -58,6 +60,7 @@ public class Service implements Runnable
         }
 
         assertWritableDirectory(libDirectory);
+        assertWritableDirectory(etcDirectory);
         assertWritableDirectory(logDirectory);
 
         mustBeReadableFile(this.jettyRunnerJar);
@@ -82,6 +85,7 @@ public class Service implements Runnable
     {
         String controlPort    = systemPropertyOrEnvironment("CONTROL_PORT"    , null);
         String libDirectory   = systemPropertyOrEnvironment("LIB_DIRECTORY"   , null);
+        String etcDirectory   = systemPropertyOrEnvironment("ETC_DIRECTORY"   , null);
         String logDirectory   = systemPropertyOrEnvironment("LOG_DIRECTORY"   , null);
         String jettyRunnerJar = systemPropertyOrEnvironment("JETTY_RUNNER_JAR", null);
 
@@ -102,7 +106,11 @@ public class Service implements Runnable
                     die("Flag: '" + flag + "' requires one argument");
                 }
 
-                if (flag.contains("-log"))
+                if (flag.contains("-etc"))
+                {
+                    etcDirectory=argument;
+                }
+                else if (flag.contains("-log"))
                 {
                     logDirectory=argument;
                 }
@@ -139,6 +147,7 @@ public class Service implements Runnable
             if (controlPort   ==null) die("controlPort is unspecified"   +usage);
             if (logDirectory  ==null) die("logDirectory is unspecified"  +usage);
             if (libDirectory  ==null) die("libDirectory is unspecified"  +usage);
+            if (etcDirectory  ==null) die("etcDirectory is unspecified"  +usage);
             // (jettyRunnerJar==null) die("jettyRunnerJar is unspecified"+usage);
         }
 
@@ -151,6 +160,7 @@ public class Service implements Runnable
             Service service=new Service(
                     Integer.parseInt(controlPort),
                     new File(libDirectory),
+                    new File(etcDirectory),
                     new File(logDirectory),
                     jettyRunnerJar
             );
@@ -269,7 +279,7 @@ public class Service implements Runnable
         logDate();
         log.println("Service is being restored, launching all previous servlets...");
 
-        for (File file : libDirectory.listFiles())
+        for (File file : etcDirectory.listFiles())
         {
             String name=file.getName();
 
@@ -325,7 +335,7 @@ public class Service implements Runnable
     private
     File configFileForServicePort(int servicePort)
     {
-        return new File(libDirectory, servicePort+".config");
+        return new File(etcDirectory, servicePort+".config");
     }
 
     private
@@ -2084,7 +2094,8 @@ public class Service implements Runnable
     List<Properties> propertiesFromMatchingConfigFiles(Filter filter) throws IOException
     {
         List<Properties> retval=new ArrayList<Properties>();
-        for (File file : libDirectory.listFiles())
+
+        for (File file : etcDirectory.listFiles())
         {
             if (!file.getName().endsWith(".config"))
             {
@@ -2103,7 +2114,8 @@ public class Service implements Runnable
     List<Properties> propertiesFromAllConfigFiles() throws IOException
     {
         List<Properties> retval=new ArrayList<Properties>();
-        for (File file : libDirectory.listFiles())
+
+        for (File file : etcDirectory.listFiles())
         {
             if (!file.getName().endsWith(".config"))
             {
