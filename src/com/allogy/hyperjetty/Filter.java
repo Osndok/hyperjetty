@@ -39,7 +39,7 @@ class Filter
     void applySetOperationTo(Properties properties)
     {
         if (name!=null) setPropertyKeyToOnlySetEntry(properties, NAME, name);
-        if (tag !=null) setPropertyKeyToOnlySetEntry(properties, TAG , tag );
+        if (tag !=null) setPropertyKeyToMultipleEntry(properties, TAG, tag);
         if (path!=null) setPropertyKeyToOnlySetEntry(properties, PATH, path);
         if (heap!=null) setPropertyKeyToOnlySetEntry(properties, HEAP_SIZE, heap);
         if (perm!=null) setPropertyKeyToOnlySetEntry(properties, PERM_SIZE, perm);
@@ -52,6 +52,25 @@ class Filter
         {
             throw new UnsupportedOperationException("cannot set pid (it is automatically set on launch)");
         }
+    }
+
+    private
+    void setPropertyKeyToMultipleEntry(Properties properties, ServletProps key, Set<String> set)
+    {
+        StringBuilder csv=null;
+        for (String s : set) {
+            if (csv==null)
+            {
+                csv=new StringBuilder();
+            }
+            else
+            {
+                csv.append(',');
+            }
+            csv.append(s);
+        }
+
+        properties.setProperty(key.toString(), csv.toString());
     }
 
     private
