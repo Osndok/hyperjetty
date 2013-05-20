@@ -36,11 +36,25 @@ public class Client
         boolean thisArgIsHost=false;
         boolean thisArgIsPort=false;
 
-        for (String arg : args) {
-            if (isReadableFile(arg))
+        for (String arg : args)
+        {
+
+            int equalsSign=arg.indexOf('=');
+            if (equalsSign > 0)
+            {
+                String possibleFilename=arg.substring(equalsSign+1);
+                //flag=arg.substring(0, equalsSign);
+                //log.println("split: flag="+flag+" & arg="+argument);
+                if (isReadableFile(possibleFilename))
+                {
+                    files.add(new File(possibleFilename));
+                }
+            }
+            else if (isReadableFile(arg))
             {
                 files.add(new File(arg));
             }
+
             if (thisArgIsHost)
             {
                 host=arg;

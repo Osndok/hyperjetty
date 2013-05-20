@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        alpha
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
