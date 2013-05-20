@@ -1529,6 +1529,21 @@ public class Service implements Runnable
         PortReservation portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
 
         int servicePort=portReservation.getServicePort();
+        int firstAttemptAtAServicePort=servicePort;
+
+        while (configFileForServicePort(servicePort).exists())
+        {
+            log.println("WARN: port already configured: "+servicePort);
+            PortReservation previousReservation=portReservation;
+            portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+            previousReservation.release();
+            servicePort=portReservation.getServicePort();
+            if (servicePort==firstAttemptAtAServicePort)
+            {
+                throw new IllegalStateException("attempting to acequire a port reservation wrapped back around to "+servicePort+" this instance is probably 'full'...");
+            }
+        }
+
         int jmxPort=portReservation.getJmxPort();
 
         log.println("PORT="+servicePort);
