@@ -21,3 +21,7 @@ out/$(NAME)-$(VERSION).tgz: ALWAYS
 rpm: out/hyperjetty.jar hyperjetty.spec
 	rpmbuild -ba
 
+send: archive
+	scp out/$(NAME)-$(VERSION).tgz devel:/root/rpmbuild/SOURCES/
+	scp etc/hyperjetty.init        devel:/root/rpmbuild/SOURCES/
+	scp etc/hyperjetty.spec devel:/tmp/

@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# hyperjetty - java servlet container hypervisor
+#
+# chkconfig:   35 85 15
+# description: java servlet container hypervisor
+#
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+exec="/usr/sbin/hyperjettyd"
+prog=$(basename $exec)
+
+[ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+
+logfile=/var/log/hyperjetty/service.log
+pidfile=/var/run/$prog
+lockfile=/var/lock/subsys/$prog
+
+start() {
+    echo -n $"Starting $prog: "
+    #daemon $exec... is not working? blocks shell.
+    #retval=$?
+	if [ -s ${pidfile} ]; then
+		retval=1
+		echo -n "might already be running ?!?!" && warning
+		echo
+    else
+		nohup ${exec} > $logfile 2>&1 &
+		retval=$?
+		PID=$!
+		[ $retval -eq 0 ] && touch ${lockfile} && success || failure
+		echo
+		echo $PID > ${pidfile}
+    fi
+    echo
+    [ $retval -eq 0 ] && touch $lockfile
+    return $retval
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+	if [ -s ${pidfile} ]; then
+		PID=$(cat ${pidfile})
+		kill $PID
+		rm -f ${pidfile}
+	else
+		retval=1
+		echo -n "might already be stopped ?!?!" && warning
+		echo
+	fi
+    #/usr/bin/hj shutdown
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && rm -f $lockfile
+    return $retval
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+    start|stop|restart)
+        $1
+        ;;
+    force-reload)
+        restart
+        ;;
+    status)
+        status $prog
+        ;;
+    try-restart|condrestart)
+        if status $prog >/dev/null ; then
+            restart
+        fi
+	;;
+    reload)
+        status $prog >/dev/null || exit 7
+        exec /usr/bin/hj reload
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|reload|restart|try-restart|force-reload}"
+        exit 2
+esac
