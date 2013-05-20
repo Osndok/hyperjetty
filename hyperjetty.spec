@@ -11,12 +11,14 @@ URL:            http://redmine.allogy.com/projects/hyperjetty
 Source0:        hyperjetty-%{version}.tgz
 Source1:        jetty-runner.jar
 
-BuildArch:  noarch
+BuildArch:      noarch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  java
 Requires:       java
+
+%define __jar_repack %{nil}
 
 %description
 
