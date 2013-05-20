@@ -33,28 +33,39 @@ class JMXUtils
 
             MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
 
-            ObjectName objectName=new ObjectName("java.lang:type=Memory");
-
-            CompositeData heapStats = (CompositeData) mBeanServerConnection.getAttribute(objectName, "HeapMemoryUsage");
-
-            Long heapMax=(Long)heapStats.get("max");
-            Long heapUsed=(Long)heapStats.get("used");
-
-            long heapPercentage=100*heapUsed/heapMax;
-
-            objectName=new ObjectName("java.lang:type=MemoryPool,name=CMS Perm Gen");
-
-            CompositeData permGenStats=(CompositeData)mBeanServerConnection.getAttribute(objectName, "Usage");
-
-            Long permMax=(Long)permGenStats.get("max");
-            Long permUsed=(Long)permGenStats.get("used");
-
-            long permPercentage=100*permUsed/permMax;
-
             ServletMemoryUsage retval=new ServletMemoryUsage();
 
-            retval.setHeapStats(heapUsed, heapMax, (int)heapPercentage);
-            retval.setPermGenStats(permUsed, permMax, (int)permPercentage);
+            try {
+                ObjectName objectName=new ObjectName("java.lang:type=Memory");
+
+                CompositeData heapStats = (CompositeData) mBeanServerConnection.getAttribute(objectName, "HeapMemoryUsage");
+
+                Long heapMax=(Long)heapStats.get("max");
+                Long heapUsed=(Long)heapStats.get("used");
+
+                long heapPercentage=100*heapUsed/heapMax;
+
+                retval.setHeapStats(heapUsed, heapMax, (int)heapPercentage);
+            } catch (Exception e) {
+                e.printStackTrace();
+                debugPrintJavaMBeanObjectNames(mBeanServerConnection);
+            }
+
+            try {
+                ObjectName objectName=new ObjectName("java.lang:type=MemoryPool,name=CMS Perm Gen");
+
+                CompositeData permGenStats=(CompositeData)mBeanServerConnection.getAttribute(objectName, "Usage");
+
+                Long permMax=(Long)permGenStats.get("max");
+                Long permUsed=(Long)permGenStats.get("used");
+
+                long permPercentage=100*permUsed/permMax;
+
+                retval.setPermGenStats(permUsed, permMax, (int)permPercentage);
+            } catch (Exception e) {
+                e.printStackTrace();
+                debugPrintJavaMBeanObjectNames(mBeanServerConnection);
+            }
 
             return retval;
         } finally {
@@ -148,6 +159,25 @@ class JMXUtils
 
         }
     }
+
+    private static void debugPrintJavaMBeanObjectNames(MBeanServerConnection mBeanServerConnection)
+    {
+        System.err.println("\n\nDump of Java MBeans that should be available from most virtual machines\n--------------------------");
+        try {
+            Set<ObjectName> objectNames = mBeanServerConnection.queryNames(null, null);
+            for (ObjectName objectName : objectNames) {
+                String name=objectName.toString();
+                if (name.startsWith("java.lang"))
+                {
+                    System.err.println(objectName.toString());
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        System.err.println();
+    }
+
 
     private static void debugJettyMBeans(MBeanServerConnection mBeanServerConnection) throws IOException,
             IntrospectionException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException,
