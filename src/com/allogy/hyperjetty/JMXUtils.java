@@ -6,6 +6,9 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.net.MalformedURLException;
 import java.rmi.UnmarshalException;
 import java.util.Set;
@@ -34,6 +37,23 @@ class JMXUtils
             MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
 
             ServletMemoryUsage retval=new ServletMemoryUsage();
+
+            try {
+                MemoryMXBean memory = ManagementFactory.newPlatformMXBeanProxy(
+                        mBeanServerConnection,
+                        ManagementFactory.MEMORY_MXBEAN_NAME,
+                        MemoryMXBean.class
+                );
+
+                retval.setHeapStats(memory.getHeapMemoryUsage());
+                retval.setPermGenStats(memory.getNonHeapMemoryUsage());
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+            }
+
+            System.err.println("using fallback memory implementation...");
 
             try {
                 ObjectName objectName=new ObjectName("java.lang:type=Memory");

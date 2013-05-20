@@ -1,5 +1,7 @@
 package com.allogy.hyperjetty;
 
+import java.lang.management.MemoryUsage;
+
 /**
  * User: robert
  * Date: 2013/05/15
@@ -46,6 +48,22 @@ class ServletMemoryUsage
         {
             return triple.toString();
         }
+    }
+
+    public void setHeapStats(MemoryUsage heapMemoryUsage)
+    {
+        long used=heapMemoryUsage.getUsed();
+        long max=heapMemoryUsage.getMax();
+        long percentage=100*used/max;
+        setHeapStats(used, max, (int)percentage);
+    }
+
+    public void setPermGenStats(MemoryUsage nonHeapMemoryUsage)
+    {
+        long used=nonHeapMemoryUsage.getUsed();
+        long max=nonHeapMemoryUsage.getMax();
+        long percentage=100*used/max;
+        setPermGenStats(used, max, (int)percentage);
     }
 
     private class Triple
