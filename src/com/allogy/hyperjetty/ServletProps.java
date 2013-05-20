@@ -19,6 +19,6 @@ public enum ServletProps
     PORT_NUMBER_IN_LOG_FILENAME,
     SERVICE_PORT,
     STACK_SIZE,
-    TAG,
+    TAGS,
     VERSION
 }

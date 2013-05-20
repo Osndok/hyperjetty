@@ -22,7 +22,7 @@ import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
-import static com.allogy.hyperjetty.ServletProps.TAG;
+import static com.allogy.hyperjetty.ServletProps.TAGS;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
 
 /**
@@ -784,7 +784,7 @@ public class Service implements Runnable
         }
         else if (command.startsWith("ls-tag"))
         {
-            dumpUniqueMultiKey(getFilter(args), out, TAG);
+            dumpUniqueMultiKey(getFilter(args), out, TAGS);
         }
         else if (command.startsWith("ls-version"))
         {
@@ -1572,7 +1572,7 @@ public class Service implements Runnable
 
         if (tag!=null)
         {
-            p.setProperty(TAG.toString(), tag);
+            p.setProperty(TAGS.toString(), tag);
         }
 
         maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
@@ -1862,7 +1862,7 @@ public class Service implements Runnable
         out.println("GOOD");
 
         boolean anyVersions=anyPropertyHas(matchingProperties, VERSION);
-        boolean anyTags    =anyPropertyHas(matchingProperties, TAG    );
+        boolean anyTags    =anyPropertyHas(matchingProperties, TAGS);
 
         if (true)
         { //scope for A & B
@@ -1906,7 +1906,7 @@ public class Service implements Runnable
 
             if (filter.tag==null && anyTags)
             {
-                a.append("|     Tag     ");
+                a.append("|     Tags    ");
                 b.append("+-------------");
                 //append("| production  ");
                 //append("| testing     ");
@@ -2038,7 +2038,7 @@ public class Service implements Runnable
                 //append("| development ");
                 //append("| integration ");
                 line.append("| ");
-                line.append(String.format("%-11s", p.getProperty(TAG.toString(), "")));
+                line.append(String.format("%-11s", p.getProperty(TAGS.toString(), "")));
                 line.append(' ');
             }
 

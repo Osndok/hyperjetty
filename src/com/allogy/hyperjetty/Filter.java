@@ -9,7 +9,7 @@ import static com.allogy.hyperjetty.ServletProps.PATH;
 import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
-import static com.allogy.hyperjetty.ServletProps.TAG;
+import static com.allogy.hyperjetty.ServletProps.TAGS;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
 
 /**
@@ -39,7 +39,7 @@ class Filter
     void applySetOperationTo(Properties properties)
     {
         if (name!=null) setPropertyKeyToOnlySetEntry(properties, NAME, name);
-        if (tag !=null) setPropertyKeyToMultipleEntry(properties, TAG, tag);
+        if (tag !=null) setPropertyKeyToMultipleEntry(properties, TAGS, tag);
         if (path!=null) setPropertyKeyToOnlySetEntry(properties, PATH, path);
         if (heap!=null) setPropertyKeyToOnlySetEntry(properties, HEAP_SIZE, heap);
         if (perm!=null) setPropertyKeyToOnlySetEntry(properties, PERM_SIZE, perm);
@@ -382,7 +382,7 @@ class Filter
         }
         if (tag != null)
         {
-            key= TAG.toString();
+            key= TAGS.toString();
             if (!multiMatches(p, key, tag))
             {
                 return false;
