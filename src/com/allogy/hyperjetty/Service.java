@@ -1984,13 +1984,12 @@ public class Service implements Runnable
             {
                 String jmxString=p.getProperty(JMX_PORT.toString());
 
-
                 if (jmxString!=null) {
                     try {
                         int jmxPort=Integer.parseInt(jmxString);
                         smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
                     } catch (Throwable t) {
-                        //hide somehow?
+                        t.printStackTrace();
                     }
                 }
                 if (smu==null)
