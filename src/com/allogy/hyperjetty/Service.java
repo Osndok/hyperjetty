@@ -35,6 +35,7 @@ public class Service implements Runnable
 
     private static final String SERVLET_STOPPED_PID = "-1";
     private static final long RESTART_DELAY_MS = 20;
+    private static final boolean USE_BIG_TAPESTRY_DEFAULTS = false;
 
     private final File libDirectory;
     private final File etcDirectory;
@@ -1621,10 +1622,19 @@ public class Service implements Runnable
             p.setProperty(PATH.toString(), path);
         }
 
-        //FROM: http://tapestry.apache.org/specific-errors-faq.html
-        maybeSet(p, HEAP_SIZE , "600m"); // -Xmx
-        maybeSet(p, PERM_SIZE , "512m"); // -XX:MaxPermSize=
-        maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
+        if (USE_BIG_TAPESTRY_DEFAULTS)
+        {
+            //FROM: http://tapestry.apache.org/specific-errors-faq.html
+            maybeSet(p, HEAP_SIZE , "600m"); // -Xmx
+            maybeSet(p, PERM_SIZE , "512m"); // -XX:MaxPermSize=
+            maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
+        }
+        else
+        {
+            maybeSet(p, HEAP_SIZE , "300m"); // -Xmx
+            maybeSet(p, PERM_SIZE , "200m"); // -XX:MaxPermSize=
+            maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
+        }
 
         if (heapMemory!=null)
         {
