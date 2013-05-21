@@ -765,13 +765,13 @@ public class Service implements Runnable
 
         // ------------------------------------------- CLIENT COMMANDS --------------------------------------------
 
-        if (command.equals("ping"))
-        {
-            out.print("GOOD\npong\n");
-        }
-        else if (command.startsWith("access-log"))
+        if (command.startsWith("access-log"))
         {
             dumpLogFileNames(getFilter(args), out, ".access");
+        }
+        else if (command.equals("dump"))
+        {
+            dumpPropertiesOfOneMatchingServlet(getFilter(args), out);
         }
         else if (command.equals("launch"))
         {
@@ -805,6 +805,10 @@ public class Service implements Runnable
         {
             dumpNginxRoutingTable(getFilter(args), out);
         }
+        else if (command.equals("ping"))
+        {
+            out.print("GOOD\npong\n");
+        }
         else if (command.equals("remove"))
         {
             doRemoveCommand(getFilter(args), out);
@@ -832,6 +836,54 @@ public class Service implements Runnable
             log.println(message);
         }
         // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+    }
+
+    private
+    void dumpPropertiesOfOneMatchingServlet(Filter filter, PrintStream out) throws IOException
+    {
+        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+
+        if (matches.size()!=1)
+        {
+            out.println("expecting precisely one servlet match, found "+matches.size());
+            return;
+        }
+
+        out.println("GOOD");
+
+        Properties properties=matches.get(0);
+
+        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+
+        properties.store(out, null);
+
+        String logBase = logFileBaseFromProperties(properties);
+        out.println("LOG="+logBase+".log");
+        out.println("ACCESS_LOG="+logBase+".access");
+        out.println("CONFIG_FILE="+configFileForServicePort(servicePort));
+        out.println("WAR_FILE="+warFileForServicePort(servicePort));
+
+        int pid=pid(properties);
+        out.println("PID="+pid);
+
+        if (pid<=1)
+        {
+            out.println("STATE=Stopped");
+        }
+        else if (isRunning(properties))
+        {
+            out.println("STATE=Alive");
+        }
+        else
+        {
+            out.println("STATE=Dead");
+        }
+
+        String host=filter.getOption("host", "localhost");
+        String protocol=filter.getOption("protocol", "http");
+        String path=properties.getProperty(PATH.toString());
+
+        out.println("URL="+protocol+"://"+host+":"+servicePort+path);
     }
 
     private
