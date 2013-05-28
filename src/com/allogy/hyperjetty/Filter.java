@@ -35,6 +35,10 @@ class Filter
     //Unsettable, but can be used as a key
     Set<String> pid;
 
+    //Late comers, does not actually filter (shouldn't we have relative filters like --stack<5m ???)
+    Set<String> war;
+    Set<String> stack;
+
     public
     void applySetOperationTo(Properties properties)
     {
@@ -51,6 +55,11 @@ class Filter
         if (pid!=null)
         {
             throw new UnsupportedOperationException("cannot set pid (it is automatically set on launch)");
+        }
+
+        if (war!=null)
+        {
+            throw new UnsupportedOperationException("unimplemented: war file cannot be changed at the moment");
         }
     }
 
@@ -106,6 +115,7 @@ class Filter
                 port == null &&
                 path == null &&
                 name == null &&
+                war  == null &&
                 version == null &&
                 jmxPort == null
                 ;
@@ -117,6 +127,7 @@ class Filter
     public
     boolean setRequiresServletRestart()
     {
+        //!!!: would probably need "war" too...
         return  port != null ||
                 path != null ||
                 heap != null ||
@@ -247,6 +258,16 @@ class Filter
     }
 
     public
+    void stack(String stack)
+    {
+        if (this.stack==null)
+        {
+            this.stack=new HashSet<String>();
+        }
+        addToOrList(this.stack, stack);
+    }
+
+    public
     void version(String version)
     {
         if (this.version==null)
@@ -254,6 +275,16 @@ class Filter
             this.version=new HashSet<String>();
         }
         addToOrList(this.version, version);
+    }
+
+    public
+    void war(String war)
+    {
+        if (this.war==null)
+        {
+            this.war=new HashSet<String>();
+        }
+        addToOrList(this.war, war);
     }
 
     public

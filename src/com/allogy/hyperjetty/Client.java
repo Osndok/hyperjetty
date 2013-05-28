@@ -82,24 +82,40 @@ public class Client
 
         try {
             Client client=new Client(host, Integer.parseInt(port));
+
             client.sendCommandAndFiles(args, files);
 
             if (client.goodServerResponse())
             {
                 if (!client.extraOutput) {
-                    System.err.println("success");
+                    System.out.println("success");
                 }
                 System.exit(0);
             }
             else
             {
-                System.err.println("failure");
+                System.out.println("failure");
                 System.exit(2);
             }
         } catch (Throwable t) {
             t.printStackTrace();
             System.out.println("failure");
             System.exit(1);
+        }
+    }
+
+    private
+    void dumpAllOfServerResponse() throws IOException
+    {
+        BufferedReader br=new BufferedReader(new InputStreamReader(inputStream));
+        try {
+            String line;
+            while ((line=br.readLine())!=null)
+            {
+                System.err.println(line);
+            }
+        } finally {
+            br.close();
         }
     }
 

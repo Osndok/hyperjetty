@@ -254,10 +254,17 @@ public class Service implements Runnable
                 processClientSocketCommand(socket.getInputStream(), socket.getOutputStream());
             } catch (Exception e) {
                 e.printStackTrace();
+
+                readAnyRemainingInput(socket); //e.g. files we did not use
+
                 try {
-                    socket.getOutputStream().write(e.toString().getBytes());
+                    OutputStream outputStream=socket.getOutputStream();
+                    outputStream.write(e.toString().getBytes());
+                    outputStream.flush();
+                    outputStream.close();
                 } catch (IOException e1) {
                     //could just be a premature socket closing...
+                    log.println("prematurely closing socket?");
                     log.println(e1.toString());
                 }
             } finally {
@@ -267,10 +274,27 @@ public class Service implements Runnable
                         socket.close();
                     }
                 } catch (Throwable t) {
+                    log.println("unable to close client socket (already closed?)");
                     t.printStackTrace();
                 }
             }
 
+        }
+    }
+
+    private void readAnyRemainingInput(Socket socket)
+    {
+        log.println("readAnyRemainingInput");
+        try {
+            InputStream inputStream = socket.getInputStream();
+            byte[] bytes=new byte[4096];
+            while (inputStream.read(bytes)>=0)
+            {
+                //do nothing
+            }
+        } catch (IOException e) {
+            log.println("while readAnyRemainingInput:");
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }
 
@@ -1427,124 +1451,26 @@ public class Service implements Runnable
     private
     void doLaunchCommand(List<String> args, ObjectInputStream in, PrintStream out, int numFiles) throws IOException
     {
-        String war=null;
-        String name=null;
-        String path=null;
-        String dry=null;
-        String tag=null;
-        String version=null;
+        Filter filter=getFilter(args);
 
-        String heapMemory=null;
-        String permMemory=null;
-        String stackMemory=null;
+        /* "Mandatory" arguments */
+        String war     = theOneRequired("war" , filter.war );
+        String name    = theOneRequired("name", filter.name);
+        String path    = theOneRequired("path", filter.path);
 
-        String portNumberInLogFilename=null;
+        /* Optional arguments */
+        String tag         = commaJoinedOrNull("tag"  , filter.tag  );
+        String version     = commaJoinedOrNull("version", filter.version);
 
-        String returnValue="port";
+        String heapMemory  = oneOrNull("heap", filter.heap);
+        String permMemory  = oneOrNull("perm", filter.perm);
+        String stackMemory = oneOrNull("stack", filter.stack);
 
-        Iterator<String> i=args.iterator();
+        /* Launch options */
+        String dry  = filter.getOption("dry", null);
+        String returnValue=filter.getOption("return", "port"); //by default, we will print the port number on success
 
-        while (i.hasNext())
-        {
-            String flag=i.next();
-            String argument=null;
-
-            {
-                int equals=flag.indexOf('=');
-                if (equals > 0)
-                {
-                    argument=flag.substring(equals+1);
-                    flag=flag.substring(0, equals);
-                    //log.println("split: flag="+flag+" & arg="+argument);
-                }
-            }
-
-            //most trailing "s"es can be ignored (except: "unless")
-            if (flag.endsWith("s") && !flag.endsWith("unless"))
-            {
-                flag=flag.substring(0, flag.length()-1);
-                log.println("trimming 's' from flag yields: "+flag);
-            }
-
-            if (argument==null)
-            {
-                try {
-                    argument=i.next();
-                } catch (NoSuchElementException e) {
-                    throw new IllegalArgumentException(flag+" requires one argument", e);
-                }
-            }
-
-            if (flag.endsWith("war"))
-            {
-                war=argument;
-            }
-            else if (flag.endsWith("name"))
-            {
-                name=argument;
-            }
-            else if (flag.endsWith("path"))
-            {
-                path=argument;
-            }
-            else if (flag.endsWith("dry"))
-            {
-                dry=argument;
-            }
-            else if (flag.endsWith("version"))
-            {
-                version=argument;
-            }
-            else if (flag.endsWith("heap"))
-            {
-                heapMemory=argument;
-            }
-            else if (flag.endsWith("perm"))
-            {
-                permMemory=argument;
-            }
-            else if (flag.endsWith("stack"))
-            {
-                stackMemory=argument;
-            }
-            else if (flag.endsWith("tag"))
-            {
-                tag=argument;
-            }
-            else if (flag.endsWith("return"))
-            {
-                returnValue=argument;
-            }
-            else if (flag.endsWith("port-based-logs") || flag.endsWith("portBasedLogs"))
-            {
-                portNumberInLogFilename=argument;
-            }
-            else
-            {
-                String message="Unknown option flag: "+flag;
-                out.println(message);
-                log.println(message);
-                return;
-            }
-        }
-
-        if (war==null)
-        {
-            out.println("war-file not specified, use the '--war' flag to do so; --name & --path are also required ATM");
-            return;
-        }
-
-        if (name==null)
-        {
-            out.println("application name not specified, use the '--name' flag to do so; remember to set the '--path' too");
-            return;
-        }
-
-        if (path==null)
-        {
-            out.println("path not specified, you probably want to use '/' or the instance name");
-            return;
-        }
+        String portNumberInLogFilename=filter.getOption("port-based-logs", null);
 
         if (numFiles!=1)
         {
@@ -1732,6 +1658,57 @@ public class Service implements Runnable
         out.println(retval);
     }
 
+    private String commaJoinedOrNull(String fieldName, Set<String> set)
+    {
+        if (set==null)
+        {
+            return null;
+        }
+
+        Iterator<String> i=set.iterator();
+        StringBuilder sb=new StringBuilder();
+        sb.append(i.next());
+
+        while (i.hasNext())
+        {
+            sb.append(',');
+            sb.append(i.next());
+        }
+
+        return sb.toString();
+    }
+
+    private String theOneRequired(String fieldName, Set<String> set)
+    {
+        if (set==null)
+        {
+            throw new IllegalArgumentException(fieldName+" required, but not provided");
+        }
+        Iterator<String> i=set.iterator();
+        String value=i.next();
+        if (i.hasNext())
+        {
+            throw new IllegalArgumentException("precisely one "+fieldName+" required, but "+set.size()+" provided");
+        }
+        return value;
+    }
+
+    private String oneOrNull(String fieldName, Set<String> set)
+    {
+        if (set==null)
+        {
+            return null;
+        }
+        Iterator<String> i=set.iterator();
+        String value=i.next();
+        if (i.hasNext())
+        {
+            throw new IllegalArgumentException("precisely one "+fieldName+" required, but "+set.size()+" provided");
+        }
+        return value;
+    }
+
+
     private
     void tagPresentDate(Properties p, ServletProps key)
     {
@@ -1898,6 +1875,10 @@ public class Service implements Runnable
             {
                 filter.pid(argument);
             }
+            else if (flag.contains("stack"))
+            {
+                filter.stack(argument);
+            }
             else if (flag.endsWith("tag"))
             {
                 filter.tag(argument);
@@ -1906,11 +1887,24 @@ public class Service implements Runnable
             {
                 filter.version(argument);
             }
+            else if (flag.contains("war"))
+            {
+                filter.war(argument);
+            }
             else if (flag.contains("with-"))
             {
                 String optionName=flagToOptionName(flag);
                 log.println("* option: "+optionName+" = "+argument);
                 filter.option(optionName, argument);
+            }
+            else if (flag.endsWith("with"))
+            {
+                String[] options=argument.split(",");
+                for (String optionName : options) {
+                    String value="TRUE";
+                    log.println("* option: "+optionName+" = "+value);
+                    filter.option(optionName, value);
+                }
             }
             else
             {
