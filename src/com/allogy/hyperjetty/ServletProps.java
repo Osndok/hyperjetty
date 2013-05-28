@@ -12,6 +12,7 @@ public enum ServletProps
     HEAP_SIZE,
     JMX_PORT,
     NAME,
+    OPTIONS,
     ORIGINAL_WAR,
     PATH,
     PID,

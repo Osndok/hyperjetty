@@ -15,6 +15,7 @@ import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
 import static com.allogy.hyperjetty.ServletProps.NAME;
+import static com.allogy.hyperjetty.ServletProps.OPTIONS;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
 import static com.allogy.hyperjetty.ServletProps.PATH;
 import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
@@ -1630,6 +1631,13 @@ public class Service implements Runnable
         }
 
         maybeSet(p, PID, "-1");
+
+        if (filter.options!=null)
+        {
+            String options=commaJoinedOrNull("options", filter.options.keySet());
+            log.println("launch options: "+options);
+            p.setProperty(OPTIONS.toString(), options);
+        }
 
         tagPresentDate(p, DATE_CREATED);
         writeProperties(p, configFile);
