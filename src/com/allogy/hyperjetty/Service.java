@@ -352,11 +352,13 @@ public class Service implements Runnable
         return properties;
     }
 
+    /*
     private
     Properties propertiesForService(int servicePort) throws IOException
     {
         return propertiesFromFile(configFileForServicePort(servicePort));
     }
+    */
 
     private
     File configFileForServicePort(int servicePort)
@@ -388,6 +390,20 @@ public class Service implements Runnable
 
         String logFile=logFileBase+".log";
         String accessLog=logFileBase+".access";
+
+        LaunchOptions launchOptions=new LaunchOptions(libDirectory);
+
+        {
+            String launchOptionsCsv=p.getProperty(OPTIONS.toString());
+            if (launchOptionsCsv!=null)
+            {
+                String[] optionBits=launchOptionsCsv.split(",");
+                for (String option : optionBits) {
+                    log.println("launch option: enable: "+option);
+                    launchOptions.enable(option);
+                }
+            }
+        }
 
         StringBuilder sb=new StringBuilder();
 
@@ -424,6 +440,7 @@ public class Service implements Runnable
                  * http://wiki.eclipse.org/Jetty/Tutorial/JMX
                  */
                 sb.append(" -Djetty.jmxrmiport=").append(arg);
+                launchOptions.addJettyConfig(jettyJmxXml);
             }
             else
             {
@@ -437,19 +454,22 @@ public class Service implements Runnable
 
         if (jettyJmxJar!=null && jettyJmxJar.exists())
         {
-            sb.append(" -cp ").append(jettyJmxJar).append(':').append(jettyRunnerJar);
-            sb.append(" org.mortbay.jetty.runner.Runner");
+            launchOptions.addJar(jettyJmxJar);
         }
-        else
-        {
-            sb.append(" -jar ").append(jettyRunnerJar);
-        }
+
+        launchOptions.addJar(jettyRunnerJar);
+
+        sb.append(" -cp ");
+
+        launchOptions.appendClassPath(sb);
+
+        sb.append(" org.mortbay.jetty.runner.Runner");
 
         sb.append(" --stats unsecure"); //starts a "/stats" servlet... probably harmless (minor overhead)
 
-        if (jettyJmxXml!=null && jettyJmxXml.exists())
+        for (String jettyConfigFile : launchOptions.jettyConfigFiles)
         {
-            sb.append(" --config ").append(jettyJmxXml);
+            sb.append(" --config ").append(jettyConfigFile);
         }
 
         if ((arg=p.getProperty(SERVICE_PORT.toString()))!=null)
