@@ -474,7 +474,7 @@ class Filter
     {
         return (
                 allMatchCriteriaAreNull() &&
-                andNotFilter != null &&
+                andNotFilter == null &&
                 !explicitMatchAll
         );
     }
