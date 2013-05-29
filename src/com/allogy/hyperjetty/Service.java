@@ -38,6 +38,8 @@ public class Service implements Runnable
     private static final long RESTART_DELAY_MS = 20;
     private static final boolean USE_BIG_TAPESTRY_DEFAULTS = false;
 
+    private static final int JETTY_VERSION = 9;
+
     private final File libDirectory;
     private final File etcDirectory;
     private final File logDirectory;
@@ -465,7 +467,14 @@ public class Service implements Runnable
 
         launchOptions.appendClassPath(sb);
 
-        sb.append(" org.mortbay.jetty.runner.Runner");
+        if (JETTY_VERSION > 8)
+        {
+            sb.append(" org.eclipse.jetty.runner.Runner");
+        }
+        else
+        {
+            sb.append(" org.mortbay.jetty.runner.Runner");
+        }
 
         sb.append(" --stats unsecure"); //starts a "/stats" servlet... probably harmless (minor overhead)
 
