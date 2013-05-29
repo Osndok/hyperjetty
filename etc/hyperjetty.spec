@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        alpha
-Release:        11
+Release:        12
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -11,17 +11,20 @@ URL:            http://redmine.allogy.com/projects/hyperjetty
 
 Source0:        hyperjetty-%{version}.tgz
 Source2:        hyperjetty.init
-Source3:        jetty-jmx.jar
 
-# Must use version 9.x (or later) for multiple-configs-via-CLI-args
-#Source1:       jetty-runner-9.0.3.v20130506.jar
-# Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins
-Source1:        jetty-runner.jar
+# Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins & major package-name breakage
+Source1:        jetty-runner-8.1.11.v20130520.jar
+Source3:        jetty-jmx-8.1.11.v20130520.jar
+
+# Otherwise version 9.x (or later) supports multiple-configs-via-CLI-args w/o a patch to the "Runner" class
+#ource1:        jetty-runner-9.0.3.v20130506.jar
+#ource3:        jetty-jmx-9.0.3.v20130506.jar
 
 BuildArch:      noarch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
+BuildRequires:  zip
 BuildRequires:  java
 Requires:       java
 
@@ -40,6 +43,9 @@ tracks, and launches single-servlet jetty containers.
 #configure
 make out/hyperjetty.jar
 
+# Only until 8.x has multi-configs or 9.x becomes usable
+cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
+javac -cp %{SOURCE1} etc/Runner.java
 
 %install
 rm   -rf $RPM_BUILD_ROOT
@@ -48,8 +54,17 @@ mkdir    $RPM_BUILD_ROOT
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
 cp out/hyperjetty.jar $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp etc/jetty-jmx.xml  $RPM_BUILD_ROOT/usr/lib/hyperjetty/
-cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
 cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-jmx.jar
+cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
+
+echo -e "\n\nHELP... have to perform jar-surgury on jetty-runner.jar for a trivial feature (!!!)\n\n"
+
+mkdir -p org/mortbay/jetty/runner
+cp etc/Runner.class org/mortbay/jetty/runner/
+zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+
+rm -rfv org
 
 cd       $RPM_BUILD_ROOT
 
