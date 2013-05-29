@@ -1,9 +1,7 @@
 package com.allogy.hyperjetty;
 
 import java.io.*;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 /**
  * User: robert
@@ -87,11 +85,19 @@ public class LaunchOptions
 
                     if (equalsSign<=0)
                     {
-                        log.println("WARNING: malformed line: "+line);
+                        if (line.toLowerCase().startsWith("java_"))
+                        {
+                            addJavaDefine(line.substring(line.indexOf("_")+1));
+                        }
+                        else
+                        {
+                            log.println("WARNING: malformed line: "+line);
+                        }
                     }
                     else
                     {
-                        String key=line.substring(0, equalsSign).toLowerCase().trim();
+                        String keyUpper=line.substring(0, equalsSign).trim();
+                        String key=keyUpper.toLowerCase();
                         String value=line.substring(equalsSign+1).trim();
                         log.println(optionName+" "+key+" -> '"+value+"'");
 
@@ -107,6 +113,10 @@ public class LaunchOptions
                         {
                             addJar(possiblyRelativePath(value));
                         }
+                        else if (key.startsWith("java_"))
+                        {
+                            addJavaDefine(line.substring(line.indexOf("_")+1));
+                        }
                         else
                         {
                             log.println("WARNING: unrecognized option '"+key+"' in "+optionName+" config: "+optionDescriptionFile);
@@ -121,6 +131,25 @@ public class LaunchOptions
         {
             log.println("WARNING: option configuration does not exist: "+optionDescriptionFile);
         }
+    }
+
+    List<String> javaDefines=new ArrayList<String>();
+
+    public
+    void addJavaDefine(String s)
+    {
+        System.err.println("Got java define: -D"+s);
+        javaDefines.add(s);
+    }
+
+    public
+    String getJavaDefines()
+    {
+        StringBuilder sb=new StringBuilder();
+        for (String s : javaDefines) {
+            sb.append(" -D").append(s);
+        }
+        return sb.toString();
     }
 
     private File possiblyRelativePath(String value)

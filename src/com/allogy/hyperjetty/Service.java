@@ -452,6 +452,8 @@ public class Service implements Runnable
 
         sb.append(" -Dvisualvm.display.name=").append(debugProcessNameWithoutSpaces(p));
 
+        sb.append(launchOptions.getJavaDefines());
+
         if (jettyJmxJar!=null && jettyJmxJar.exists())
         {
             launchOptions.addJar(jettyJmxJar);
