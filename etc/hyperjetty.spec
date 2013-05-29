@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        alpha
-Release:        8
+Release:        9
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -10,9 +10,11 @@ License:        Proprietary
 URL:            http://redmine.allogy.com/projects/hyperjetty
 
 Source0:        hyperjetty-%{version}.tgz
-Source1:        jetty-runner.jar
 Source2:        hyperjetty.init
 Source3:        jetty-jmx.jar
+
+# Must use version 9.x (or later) for multiple-configs-via-CLI-args
+Source1:        jetty-runner-9.0.3.v20130506.jar
 
 BuildArch:      noarch
 
