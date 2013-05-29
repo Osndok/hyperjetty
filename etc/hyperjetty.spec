@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        alpha
-Release:        10
+Release:        11
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -14,7 +14,9 @@ Source2:        hyperjetty.init
 Source3:        jetty-jmx.jar
 
 # Must use version 9.x (or later) for multiple-configs-via-CLI-args
-Source1:        jetty-runner-9.0.3.v20130506.jar
+#Source1:       jetty-runner-9.0.3.v20130506.jar
+# Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins
+Source1:        jetty-runner.jar
 
 BuildArch:      noarch
 

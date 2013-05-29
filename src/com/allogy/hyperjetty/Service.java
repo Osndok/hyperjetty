@@ -38,7 +38,7 @@ public class Service implements Runnable
     private static final long RESTART_DELAY_MS = 20;
     private static final boolean USE_BIG_TAPESTRY_DEFAULTS = false;
 
-    private static final int JETTY_VERSION = 9;
+    private static final int JETTY_VERSION = 8;
 
     private final File libDirectory;
     private final File etcDirectory;
