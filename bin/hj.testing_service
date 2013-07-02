@@ -10,5 +10,7 @@ OPTIONS="-Dvisualvm.display.name=Jetty-Hypervisor"
 OPTIONS="$OPTIONS -Xmx33m"
 OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
 
+test -d $LIB_DIRECTORY || mkdir $LIB_DIRECTORY
+
 exec java $OPTIONS -cp out/production/hyperjetty com.allogy.hyperjetty.Service "$@"
 
