@@ -297,7 +297,7 @@ public class Service implements Runnable
             }
         } catch (IOException e) {
             log.println("while readAnyRemainingInput:");
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            e.printStackTrace();
         }
     }
 
@@ -867,9 +867,13 @@ public class Service implements Runnable
         {
             dumpLogFileNames(getFilter(args), out, ".access");
         }
-        else if (command.equals("dump"))
+        else if (command.equals("dump") || command.equals("props"))
         {
             dumpPropertiesOfOneMatchingServlet(getFilter(args), out);
+        }
+        else if (command.equals("dump2") || command.equals("trace"))
+        {
+            sendKillQuitSignalTo(getFilter(args), out);
         }
         else if (command.equals("launch"))
         {
@@ -935,6 +939,51 @@ public class Service implements Runnable
         }
         // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
     }
+
+    private
+    void sendKillQuitSignalTo(Filter filter, PrintStream out) throws IOException
+    {
+        int total=0;
+        int success=0;
+
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+        {
+            total++;
+            String name=humanReadable(properties);
+
+            try {
+                int pid=Integer.parseInt(properties.getProperty(PID.toString()));
+                log.println("dump-trace: "+name+" (pid="+pid+")");
+
+                Process process = Runtime.getRuntime().exec("kill -QUIT " + pid);
+
+                process.waitFor();
+                int status=process.exitValue();
+                if (status==0)
+                {
+                    success++;
+                }
+                else
+                {
+                    String message="failed to send trace '"+name+"': kill exit status "+status;
+                    failures.add(message);
+                    log.println(message);
+                }
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+                String message="failed to send trace '"+name+"': "+t.toString();
+                failures.add(message);
+                log.println(message);
+            }
+        }
+
+        successOrFailureReport("traced", total, success, failures, out);
+    }
+
 
     private
     void dumpPropertiesOfOneMatchingServlet(Filter filter, PrintStream out) throws IOException
