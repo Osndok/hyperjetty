@@ -563,7 +563,38 @@ public class Service implements Runnable
             throw new IllegalStateException("failure to launch: "+pidString);
         }
 
+        if (!presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
+        {
+            String name=p.getProperty(NAME.toString());
+            swapLatestLogFileLinks(p, new File(logFile  ), name+".latest.log"   );
+            swapLatestLogFileLinks(p, new File(accessLog), name+".latest.access");
+        }
+
         return pid;
+    }
+
+    private
+    void swapLatestLogFileLinks(Properties p, File logFile, String genericBase)
+    {
+        try {
+            String[] command=new String[]{
+                "/bin/ln",
+                "-sf",
+                logFile.getName(),
+                genericBase
+            };
+            log.println("["+logFile.getParentFile()+"] "+command[0]+" "+command[1]+" "+command[2]+" "+command[3]);
+            Process process = Runtime.getRuntime().exec(command, null, logFile.getParentFile());
+            if (false) {
+                process.waitFor();
+                int exitValue=process.exitValue();
+                log.println("exit status: " + exitValue);
+            }
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
     }
 
     private
@@ -629,21 +660,32 @@ public class Service implements Runnable
     private
     String logFileBaseFromProperties(Properties p)
     {
-        if (falseish(p, PORT_NUMBER_IN_LOG_FILENAME))
+        if (presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
         {
-            String appName=p.getProperty(NAME.toString(), "no-name");
-            String basename=niceFileCharactersOnly(appName);
-
-            return new File(logDirectory, basename).toString();
+            return logNameWithoutPid(p);
         }
         else
         {
-            String appName=p.getProperty(NAME.toString(), "no-name");
-            String portNumber=p.getProperty(SERVICE_PORT.toString(), "no-port");
-            String basename=niceFileCharactersOnly(appName+"-"+portNumber);
-
-            return new File(logDirectory, basename).toString();
+            return logNameWithPid(p);
         }
+    }
+
+    private
+    String logNameWithoutPid(Properties p)
+    {
+        String appName=p.getProperty(NAME.toString(), "no-name");
+        String basename=niceFileCharactersOnly(appName);
+        return new File(logDirectory, basename).toString();
+    }
+
+    private
+    String logNameWithPid(Properties p)
+    {
+        String appName=p.getProperty(NAME.toString(), "no-name");
+        String portNumber=p.getProperty(SERVICE_PORT.toString(), "no-port");
+        String basename=niceFileCharactersOnly(appName+"-"+portNumber);
+
+        return new File(logDirectory, basename).toString();
     }
 
     private
@@ -1446,8 +1488,9 @@ public class Service implements Runnable
         }
     }
 
-    //NB: trueish & falseish are not complementary (they both return false for NULL or unknown)
-    private boolean trueish(Properties p, ServletProps key)
+    //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
+    private
+    boolean presentAndTrue(Properties p, ServletProps key)
     {
         String s=p.getProperty(key.toString());
         if (s==null || s.length()==0) return false;
@@ -1455,8 +1498,9 @@ public class Service implements Runnable
         return (c=='t' || c=='T' || c=='1' || c=='y' || c=='Y');
     }
 
-    //NB: trueish & falseish are not complementary (they both return false for NULL or unknown)
-    private boolean falseish(Properties p, ServletProps key)
+    //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
+    private
+    boolean presentAndFalse(Properties p, ServletProps key)
     {
         String s=p.getProperty(key.toString());
         if (s==null || s.length()==0) return false;
