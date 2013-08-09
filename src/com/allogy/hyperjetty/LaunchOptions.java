@@ -115,7 +115,7 @@ public class LaunchOptions
                         }
                         else if (key.startsWith("java_"))
                         {
-                            addJavaDefine(line.substring(line.indexOf("_")+1));
+                            addJavaDefine(line.substring(line.indexOf("_") + 1));
                         }
                         else
                         {
@@ -140,6 +140,15 @@ public class LaunchOptions
     {
         System.err.println("Got java define: -D"+s);
         javaDefines.add(s);
+    }
+
+    public
+    boolean hasJavaDefine(String s)
+    {
+        for (String s1 : javaDefines) {
+            if (s.equals(s1)) return true;
+        }
+        return false;
     }
 
     public

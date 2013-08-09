@@ -452,6 +452,13 @@ public class Service implements Runnable
             }
         }
 
+        boolean substituteAccessLog=launchOptions.hasJavaDefine("HJ_ACCESS_LOG_REPLACEMENT=true");
+
+        if (substituteAccessLog)
+        {
+            sb.append(" -DHJ_ACCESS_LOG=").append(accessLog);
+        }
+
         sb.append(" -Dvisualvm.display.name=").append(debugProcessNameWithoutSpaces(p));
 
         sb.append(launchOptions.getJavaDefines());
@@ -493,7 +500,10 @@ public class Service implements Runnable
             sb.append(" --path ").append(arg);
         }
 
-        sb.append(" --log ").append(accessLog);
+        if (!substituteAccessLog)
+        {
+            sb.append(" --log ").append(accessLog);
+        }
 
         sb.append(" ").append(warFile.toString());
 
