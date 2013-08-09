@@ -395,6 +395,7 @@ public class Service implements Runnable
 
         LaunchOptions launchOptions=new LaunchOptions(libDirectory);
 
+        launchOptions.enable("default");
         {
             String launchOptionsCsv=p.getProperty(OPTIONS.toString());
             if (launchOptionsCsv!=null)

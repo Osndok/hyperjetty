@@ -113,6 +113,11 @@ public class LaunchOptions
                         {
                             addJar(possiblyRelativePath(value));
                         }
+                        else if (key.equals("include"))
+                        {
+                            log.println("INCLUDE: "+value);
+                            enable(value);
+                        }
                         else if (key.startsWith("java_"))
                         {
                             addJavaDefine(line.substring(line.indexOf("_") + 1));
