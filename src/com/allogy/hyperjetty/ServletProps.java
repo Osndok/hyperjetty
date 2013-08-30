@@ -9,6 +9,7 @@ public enum ServletProps
 {
     DATE_CREATED,
     DATE_STARTED,
+    DATE_RESPAWNED,
     HEAP_SIZE,
     JMX_PORT,
     NAME,
@@ -18,6 +19,7 @@ public enum ServletProps
     PID,
     PERM_SIZE,
     PORT_NUMBER_IN_LOG_FILENAME,
+    RESPAWN_COUNT,
     SERVICE_PORT,
     STACK_SIZE,
     TAGS,

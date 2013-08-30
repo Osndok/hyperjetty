@@ -4,6 +4,7 @@ import javax.management.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -11,6 +12,7 @@ import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
 import static com.allogy.hyperjetty.ServletProps.DATE_CREATED;
+import static com.allogy.hyperjetty.ServletProps.DATE_RESPAWNED;
 import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
@@ -21,6 +23,7 @@ import static com.allogy.hyperjetty.ServletProps.PATH;
 import static com.allogy.hyperjetty.ServletProps.PERM_SIZE;
 import static com.allogy.hyperjetty.ServletProps.PID;
 import static com.allogy.hyperjetty.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
+import static com.allogy.hyperjetty.ServletProps.RESPAWN_COUNT;
 import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
 import static com.allogy.hyperjetty.ServletProps.TAGS;
@@ -39,6 +42,22 @@ public class Service implements Runnable
     private static final boolean USE_BIG_TAPESTRY_DEFAULTS = false;
 
     private static final int JETTY_VERSION = 8;
+
+    /**
+     * The amount of time (measured in milliseconds) which the service should "sleep" between
+     * connections. Approximately equates to "time between checking for dead services".
+     */
+    private static final int PERIODIC_SLEEP_MS = 5000;
+
+    /**
+     * The amount of time (measured in milliseconds) less than which the service should
+     * absolutely not restart a dead service (the service won't even check). If an respawning
+     * service fails instantly on startup, this will be the frequency at which it will be
+     * revived (*possibly* to work again). On the other hand, if a "mostly stable" servlet
+     * (that has been running a while) dies, it will be restarted almost instantly as governed
+     * by PERIODIC_SLEEP_MS).
+     */
+    private static final long MAX_RESTART_THRASHING_PERIOD_MS = 60000;
 
     private final File libDirectory;
     private final File etcDirectory;
@@ -70,6 +89,8 @@ public class Service implements Runnable
         mustBeReadableFile(this.jettyRunnerJar);
 
         log=System.out;
+
+        serverSocket.setSoTimeout(PERIODIC_SLEEP_MS);
     }
 
     public int minimumServicePort =10000;
@@ -199,17 +220,6 @@ public class Service implements Runnable
         }
     }
 
-    /**
-     * If true, then running on a system where /proc/$PID has useful information, otherwise
-     * running on a OS-X development machine.
-     */
-    private static boolean LINUX=true;
-
-    static
-    {
-        LINUX=!new File("/System/Library").exists();
-    }
-
     private static
     void die(String s)
     {
@@ -255,6 +265,13 @@ public class Service implements Runnable
             try {
                 socket=serverSocket.accept();
                 processClientSocketCommand(socket.getInputStream(), socket.getOutputStream());
+            } catch (SocketTimeoutException e) {
+                socket=null;
+                try {
+                    doPeriodicTasks();
+                } catch (Exception e2) {
+                    e2.printStackTrace();
+                }
             } catch (Exception e) {
                 e.printStackTrace();
 
@@ -283,6 +300,70 @@ public class Service implements Runnable
             }
 
         }
+    }
+
+    private
+    void doPeriodicTasks()
+    {
+        //log.println("doPeriodicTasks()");
+        for (File file : etcDirectory.listFiles())
+        {
+            if (!file.getName().endsWith(".config"))
+            {
+                continue;
+            }
+            try {
+                Properties p=propertiesFromFile(file);
+                Date lastRespawn=getDate(p, DATE_RESPAWNED);
+                boolean thrashingIfDead=(lastRespawn!=null && isWithinRespawnThrashingDelay(lastRespawn));
+
+                int pid = pid(p);
+
+                if (pid>0)
+                {
+                    Boolean running=ProcessUtils.processState(pid);
+
+                    if (running!=null && !running)
+                    {
+                        if (thrashingIfDead)
+                        {
+                            log.println("(!) thrashing: "+file);
+                        }
+                        else
+                        {
+                            log.println("respawning dead process (pid="+pid+"): "+file);
+                            doRespawn(p);
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                System.err.println("While processing: "+file);
+                e.printStackTrace();
+            }
+
+        }
+    }
+
+    private
+    void doRespawn(Properties p) throws IOException
+    {
+        tagPresentDate(p, DATE_RESPAWNED);
+        int count=Integer.parseInt(p.getProperty(RESPAWN_COUNT.toString(), "0"));
+        count++;
+        p.setProperty(RESPAWN_COUNT.toString(), Integer.toString(count));
+        int servicePort= Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
+        writeProperties(p, configFileForServicePort(servicePort));
+        actuallyLaunchServlet(servicePort);
+    }
+
+    private
+    boolean isWithinRespawnThrashingDelay(Date lastRespawn)
+    {
+        long now=System.currentTimeMillis();
+        long then=lastRespawn.getTime();
+        long millis=(now-then);
+        return (millis<MAX_RESTART_THRASHING_PERIOD_MS);
     }
 
     private void readAnyRemainingInput(Socket socket)
@@ -729,93 +810,7 @@ public class Service implements Runnable
     boolean isRunning(Properties properties)
     {
         int pid=pid(properties);
-        return isRunning(pid);
-    }
-
-    private
-    boolean isRunning(int pid)
-    {
-        if (pid<0)
-        {
-            ///!!!: bug: setting the pid<=1 should indicate that the servlet should *NOT* be restarted automatically
-            log.println("special pid indicates last state was not running / stopped: "+pid);
-            return false;
-        }
-
-        if (LINUX)
-        {
-            File file=new File("/proc/"+pid+"/cmdline");
-            if (file.exists())
-            {
-                log.println("found: "+file);
-                try {
-                    String contents=fileContentsAsString(file);
-                    if (contents==null || contents.contains("java"))
-                    {
-                        log.println("pid "+pid+" is present and has java marker: "+file);
-                        return true;
-                    }
-                    else
-                    {
-                        log.println("pid "+pid+" is present, but has no java marker: "+file);
-                        return false;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return true; //cannot verify the command name, but matching PID is sufficient, I guess...
-                }
-            }
-            else
-            {
-                log.println("dne: "+file);
-                return false;
-            }
-        }
-        else
-        {
-            try {
-                Process process = Runtime.getRuntime().exec(new String[]{
-                        "ps",
-                        "-p",
-                        Integer.toString(pid)
-                });
-
-                StringBuilder sb=new StringBuilder();
-                InputStream inputStream=process.getInputStream();
-
-                int c;
-                while ((c=inputStream.read())>0)
-                {
-                    sb.append((char)c);
-                }
-
-                int status=process.waitFor();
-                if (status==0)
-                {
-                    if (sb.indexOf("java")>0)
-                    {
-                        log.println("pid "+pid+" is present, with java marker");
-                        return true;
-                    }
-                    else
-                    {
-                        log.println("pid "+pid+" is present, but lacks java marker");
-                        return false;
-                    }
-                }
-                else
-                {
-                    log.println("pid "+pid+" is not present");
-                    return false;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                return false;
-            } catch (InterruptedException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                return false;
-            }
-        }
+        return ProcessUtils.isRunning(pid);
     }
 
     private
@@ -830,12 +825,6 @@ public class Service implements Runnable
         }
 
         return Integer.parseInt(pid);
-    }
-
-    private
-    String fileContentsAsString(File file) throws FileNotFoundException
-    {
-        return new Scanner(file).useDelimiter("\\Z").next();
     }
 
     private
@@ -1851,6 +1840,20 @@ public class Service implements Runnable
         return value;
     }
 
+    private
+    Date getDate(Properties p, ServletProps key)
+    {
+        String value=p.getProperty(key.toString());
+        if (value!=null)
+        {
+            try {
+                return iso_8601_ish.parse(value);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
 
     private
     void tagPresentDate(Properties p, ServletProps key)
@@ -2201,7 +2204,7 @@ public class Service implements Runnable
                 line.append(String.format("%12s", perm));
                 line.append(" ");
             }
-            else if (isRunning(pid))
+            else if (ProcessUtils.isRunning(pid))
             {
                 String jmxString=p.getProperty(JMX_PORT.toString());
 
