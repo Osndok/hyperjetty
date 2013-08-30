@@ -321,7 +321,7 @@ public class Service implements Runnable
 
                 if (pid>0)
                 {
-                    Boolean running=ProcessUtils.processState(pid);
+                    Boolean running=ProcessUtils.processState(pid, false);
 
                     if (running!=null && !running)
                     {
@@ -331,6 +331,7 @@ public class Service implements Runnable
                         }
                         else
                         {
+                            logDate();
                             log.println("respawning dead process (pid="+pid+"): "+file);
                             doRespawn(p);
                         }

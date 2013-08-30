@@ -31,7 +31,7 @@ public abstract class ProcessUtils
     static
     boolean isRunning(int pid)
     {
-        Boolean state=processState(pid);
+        Boolean state=processState(pid, true);
 
         if (state==null)
         {
@@ -43,12 +43,12 @@ public abstract class ProcessUtils
     }
 
     static
-    Boolean processState(int pid)
+    Boolean processState(int pid, boolean chatty)
     {
         if (pid<0)
         {
             ///!!!: bug: setting the pid<=1 should indicate that the servlet should *NOT* be restarted automatically
-            log.println("special pid indicates last state was not running / stopped: "+pid);
+            if (chatty) log.println("special pid indicates last state was not running / stopped: "+pid);
             return Boolean.FALSE;
         }
 
@@ -57,17 +57,17 @@ public abstract class ProcessUtils
             File file=new File("/proc/"+pid+"/cmdline");
             if (file.exists())
             {
-                log.println("found: "+file);
+                if (chatty) log.println("found: "+file);
                 try {
                     String contents=FileUtils.contentsAsString(file);
                     if (contents==null || contents.contains("java"))
                     {
-                        log.println("pid "+pid+" is present and has java marker: "+file);
+                        if (chatty) log.println("pid "+pid+" is present and has java marker: "+file);
                         return Boolean.TRUE;
                     }
                     else
                     {
-                        log.println("pid "+pid+" is present, but has no java marker: "+file);
+                        if (chatty) log.println("pid "+pid+" is present, but has no java marker: "+file);
                         return Boolean.FALSE;
                     }
                 } catch (Exception e) {
@@ -77,7 +77,7 @@ public abstract class ProcessUtils
             }
             else
             {
-                log.println("dne: "+file);
+                if (chatty) log.println("dne: "+file);
                 return Boolean.FALSE;
             }
         }
@@ -104,18 +104,18 @@ public abstract class ProcessUtils
                 {
                     if (sb.indexOf("java")>0)
                     {
-                        log.println("pid "+pid+" is present, with java marker");
+                        if (chatty) log.println("pid "+pid+" is present, with java marker");
                         return Boolean.TRUE;
                     }
                     else
                     {
-                        log.println("pid "+pid+" is present, but lacks java marker");
+                        if (chatty) log.println("pid "+pid+" is present, but lacks java marker");
                         return Boolean.FALSE;
                     }
                 }
                 else
                 {
-                    log.println("pid "+pid+" is not present");
+                    if (chatty) log.println("pid "+pid+" is not present");
                     return Boolean.FALSE;
                 }
             } catch (IOException e) {
