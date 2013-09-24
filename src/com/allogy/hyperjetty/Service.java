@@ -2088,21 +2088,29 @@ public class Service implements Runnable
             {
                 flag=flag.substring(0, flag.length()-1);
                 log.println("trimming 's' from flag yields: "+flag);
+                if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
             }
 
-            if (flag.endsWith("all"))
+            //Trim off leading hypens
+            while (flag.charAt(0)=='-')
+            {
+                flag=flag.substring(1);
+                if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
+            }
+
+            if (flag.equals("all"))
             {
                 building.explicitMatchAll=true;
                 continue;
             }
 
-            if (flag.endsWith("or"))
+            if (flag.equals("or"))
             {
                 building=building.or();
                 continue;
             }
 
-            if (flag.endsWith("except") || flag.endsWith("and-not") || flag.endsWith("unless"))
+            if (flag.equals("except") || flag.equals("and-not") || flag.equals("but-not") || flag.equals("unless"))
             {
                 building=building.andNot();
                 continue;
@@ -2126,7 +2134,7 @@ public class Service implements Runnable
 
             //----------- no-argument options
 
-            if (flag.contains("without-") && argument==null)
+            if (flag.startsWith("without-") && argument==null)
             {
                 String optionName=flagToOptionName(flag);
                 log.println("* without: "+optionName);
@@ -2137,12 +2145,20 @@ public class Service implements Runnable
             //------------
             // A hack to accept entries like --not-port 123 & --except-name bob
 
-            if (flag.contains("not-") || flag.contains("except-") || flag.contains("without-"))
+            if (flag.startsWith("not-") || flag.startsWith("except-") || flag.startsWith("without-"))
             {
                 filter=filter.andNot();
+                flag=flag.substring(flag.indexOf('-')+1);
+                log.println("* negated flag: "+flag);
             }
 
             //------------
+
+            //!!!: this "endsWith" logic has reached the end of it's utility, we should just strip the leading hypens and be done with it.
+            if (flag.equals("live"   )) { filter.state("alive"  ); continue; }
+            if (flag.equals("alive"  )) { filter.state("alive"  ); continue; }
+            if (flag.equals("dead"   )) { filter.state("dead"   ); continue; }
+            if (flag.equals("stopped")) { filter.state("stopped"); continue; }
 
             if (argument==null)
             {
@@ -2151,13 +2167,21 @@ public class Service implements Runnable
                 } catch (NoSuchElementException e) {
                     throw new IllegalArgumentException(flag+" requires one argument", e);
                 }
+                if (argument.length()==0)
+                {
+                    throw new IllegalArgumentException("argument cannot be the empty string");
+                }
+                if (argument.charAt(0)=='-')
+                {
+                    throw new IllegalArgumentException("arguments & flags seem to be confused: "+argument);
+                }
             }
 
-            if (flag.endsWith("heap"))
+            if (flag.startsWith("heap"))
             {
                 filter.heap(argument);
             }
-            else if (flag.endsWith("jmx") || flag.endsWith("jmx-port"))
+            else if (flag.equals("jmx") || flag.equals("jmx-port"))
             {
                 filter.jmx(argument);
             }
@@ -2165,45 +2189,49 @@ public class Service implements Runnable
             {
                 filter.port(argument);
             }
-            else if (flag.endsWith("name"))
+            else if (flag.equals("name"))
             {
                 filter.name(argument);
             }
-            else if (flag.endsWith("path"))
+            else if (flag.equals("path"))
             {
                 filter.path(argument);
             }
-            else if (flag.endsWith("perm"))
+            else if (flag.startsWith("perm"))
             {
                 filter.perm(argument);
             }
-            else if (flag.endsWith("pid"))
+            else if (flag.equals("pid"))
             {
                 filter.pid(argument);
             }
-            else if (flag.contains("stack"))
+            else if (flag.equals("state"))
+            {
+                filter.state(argument);
+            }
+            else if (flag.startsWith("stack"))
             {
                 filter.stack(argument);
             }
-            else if (flag.endsWith("tag"))
+            else if (flag.equals("tag"))
             {
                 filter.tag(argument);
             }
-            else if (flag.endsWith("version"))
+            else if (flag.equals("version"))
             {
                 filter.version(argument);
             }
-            else if (flag.contains("war"))
+            else if (flag.startsWith("war"))
             {
                 filter.war(argument);
             }
-            else if (flag.contains("with-"))
+            else if (flag.startsWith("with-"))
             {
                 String optionName=flagToOptionName(flag);
                 log.println("* option: "+optionName+" = "+argument);
                 filter.option(optionName, argument);
             }
-            else if (flag.endsWith("with"))
+            else if (flag.equals("with"))
             {
                 String[] options=argument.split(",");
                 for (String optionName : options) {
@@ -2212,7 +2240,7 @@ public class Service implements Runnable
                     filter.option(optionName, value);
                 }
             }
-            else if (flag.endsWith("without"))
+            else if (flag.equals("without"))
             {
                 log.println("* without: "+argument);
                 filter.without(argument);
@@ -2483,6 +2511,8 @@ public class Service implements Runnable
     {
         List<Properties> retval=new ArrayList<Properties>();
 
+        ServletStateChecker servletStateChecker=new PropFileServletChecker();
+
         for (File file : etcDirectory.listFiles())
         {
             if (!file.getName().endsWith(".config"))
@@ -2490,7 +2520,7 @@ public class Service implements Runnable
                 continue;
             }
             Properties p=propertiesFromFile(file);
-            if (filter.matches(p))
+            if (filter.matches(p, servletStateChecker))
             {
                 retval.add(p);
             }
@@ -2514,4 +2544,26 @@ public class Service implements Runnable
         return retval;
     }
 
+    private
+    class PropFileServletChecker implements ServletStateChecker
+    {
+
+        @Override
+        public ServletState getServletState(Properties p)
+        {
+            int pid=pid(p);
+            if (pid<=0)
+            {
+                return ServletState.STOP;
+            }
+            if (ProcessUtils.isRunning(pid))
+            {
+                return ServletState.LIVE;
+            }
+            else
+            {
+                return ServletState.DEAD;
+            }
+        }
+    }
 }

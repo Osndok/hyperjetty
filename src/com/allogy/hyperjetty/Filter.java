@@ -317,7 +317,38 @@ class Filter
         return this.options.get(option);
     }
 
-    Set<String> without;
+    Set<String> state;
+
+    public
+    void state(String state)
+    {
+        state=validateServletState(state);
+
+        if (this.state==null)
+        {
+            this.state=new HashSet<String>();
+        }
+
+        addToOrList(this.state, state);
+    }
+
+    /**
+     * A little softer than: ServletState.valueOf(state)
+     * @param state
+     * @return
+     */
+    private
+    String validateServletState(String state)
+    {
+        String l=state.toLowerCase();
+        if (l.contains("live")) return ServletState.LIVE.toString(); //e.g. "alive"
+        if (l.contains("dead")) return ServletState.DEAD.toString();
+        if (l.contains("stop")) return ServletState.STOP.toString(); //e.g. "stopped"
+
+        throw new IllegalArgumentException("Unknown servlet state: "+state);
+    }
+
+    Set <String> without;
 
     public
     void without(String option)
@@ -357,16 +388,44 @@ class Filter
     */
 
     public
-    boolean matches(Properties p)
+    boolean matches(Properties p, ServletStateChecker stateChecker)
     {
-        String key;
+        //Since getting the state of a servlet is considered expensive, we should try everything else first...
 
-        if (orFilter!=null && orFilter.matches(p))
+        if (orFilter==null)
+        {
+            if (!localNonStateMatches(p)) return false;
+        }
+        else
+        if (orFilter.matches(p, stateChecker))
         {
             return true;
         }
+        else
+        if (!localNonStateMatches(p) /* && orFilter !=null */)
+        {
+            return false;
+        }
 
-        //----------------------------------------------
+        if (andNotFilter!=null && andNotFilter.matches(p, stateChecker))
+        {
+            return false;
+        }
+
+        if (state!=null)
+        {
+            System.err.println("filter must check servlet state");
+            ServletState servletState=stateChecker.getServletState(p);
+            return state.contains(servletState.toString());
+        }
+
+        return true;
+    }
+
+    private
+    boolean localNonStateMatches(Properties p)
+    {
+        String key;
 
         if (heap!=null)
         {
@@ -439,11 +498,6 @@ class Filter
             {
                 return false;
             }
-        }
-
-        if (andNotFilter!=null && andNotFilter.matches(p))
-        {
-            return false;
         }
 
         return true;
