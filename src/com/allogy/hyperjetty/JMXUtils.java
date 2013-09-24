@@ -6,11 +6,14 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.rmi.UnmarshalException;
 import java.util.Set;
+import java.util.concurrent.*;
 
 /**
  *
@@ -29,7 +32,7 @@ class JMXUtils
     {
         JMXServiceURL jmxServiceURL=serviceUrlForPort(jmxPort);
 
-        JMXConnector jmxConnector = JMXConnectorFactory.connect(jmxServiceURL);
+        JMXConnector jmxConnector = connectWithTimeout(jmxServiceURL, 1, TimeUnit.SECONDS);
 
         try {
 
@@ -111,7 +114,7 @@ class JMXUtils
     {
         JMXServiceURL jmxServiceURL=serviceUrlForPort(jmxPort);
 
-        JMXConnector jmxConnector = JMXConnectorFactory.connect(jmxServiceURL);
+        JMXConnector jmxConnector = connectWithTimeout(jmxServiceURL, 2, TimeUnit.SECONDS);
 
         try {
 
@@ -229,4 +232,73 @@ class JMXUtils
         return new JMXServiceURL("service:jmx:rmi:///jndi/rmi://localhost:"+jmxPort+"/jmxrmi");
         //XXX: return new JMXServiceURL("service:jmx:jmxmp://localhost:"+jmxPort);
     }
+
+    /**
+     * https://weblogs.java.net/blog/emcmanus/archive/2007/05/making_a_jmx_co_1.html
+     */
+    public static
+    JMXConnector connectWithTimeout(final JMXServiceURL url, long timeout, TimeUnit unit) throws IOException
+    {
+        final BlockingQueue<Object> mailbox = new ArrayBlockingQueue<Object>(1);
+        ExecutorService executor =
+                Executors.newSingleThreadExecutor(daemonThreadFactory);
+        executor.submit(new Runnable() {
+            public void run() {
+                try {
+                    JMXConnector connector = JMXConnectorFactory.connect(url);
+                    if (!mailbox.offer(connector))
+                        connector.close();
+                } catch (Throwable t) {
+                    mailbox.offer(t);
+                }
+            }
+        });
+        Object result;
+        try {
+            result = mailbox.poll(timeout, unit);
+            if (result == null) {
+                if (!mailbox.offer(""))
+                    result = mailbox.take();
+            }
+        } catch (InterruptedException e) {
+            throw initCause(new InterruptedIOException(e.getMessage()), e);
+        } finally {
+            executor.shutdown();
+        }
+        if (result == null)
+            throw new SocketTimeoutException("Connect timed out: " + url);
+        if (result instanceof JMXConnector)
+            return (JMXConnector) result;
+        try {
+            throw (Throwable) result;
+        } catch (IOException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Error e) {
+            throw e;
+        } catch (Throwable e) {
+            // In principle this can't happen but we wrap it anyway
+            throw new IOException(e.toString(), e);
+        }
+    }
+
+    private static <T extends Throwable>
+    T initCause(T wrapper, Throwable wrapped)
+    {
+        wrapper.initCause(wrapped);
+        return wrapper;
+    }
+
+    private static
+    class DaemonThreadFactory implements ThreadFactory
+    {
+        public Thread newThread(Runnable r) {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+        }
+    }
+
+    private static final ThreadFactory daemonThreadFactory = new DaemonThreadFactory();
 }
