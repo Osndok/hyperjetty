@@ -1725,6 +1725,22 @@ public class Service implements Runnable
             e.printStackTrace();
         }
 
+        if (version==null)
+        {
+            try {
+                version=MavenUtils.readVersionNumberFromWarFile(warFile);
+                log.println("? version from maven: "+version);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (version==null)
+        {
+            version=guessVersionNumberFromWarName(war);
+            log.println("? version from war name: "+version);
+        }
+
         if (p==null)
         {
             log.println("INFO: the war file has no embedded servlet properties");
@@ -1828,6 +1844,30 @@ public class Service implements Runnable
         }
         out.println("GOOD");
         out.println(retval);
+    }
+
+    private
+    String guessVersionNumberFromWarName(String name)
+    {
+        int slash=name.lastIndexOf('/');
+        if (slash >0) name=name.substring(slash+1);
+        int period = name.lastIndexOf('.');
+        if (period>0) name=name.substring(0, period);
+        int hypen  = name.lastIndexOf('-');
+        if (hypen >0)
+        {
+            String beforeHypen=name.substring(0, hypen);
+            String afterHypen=name.substring(hypen+1);
+            if (looksLikeVersionNumber(afterHypen))
+            {
+                return afterHypen;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return null;
     }
 
     private
