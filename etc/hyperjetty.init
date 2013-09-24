@@ -19,6 +19,17 @@ logfile=/var/log/hyperjetty/service.log
 pidfile=/var/run/$prog
 lockfile=/var/lock/subsys/$prog
 
+if [ -n "${HJ_STARTUP_BYPASS:-}" ]; then
+	# We are now running as the correct user, so it's important not to echo anything to stderr
+	# because we don't have permission to write to the terminal (?!).
+	# Let's just go ahead and run the desired program in daemon mode, print the pid & exit...
+	bash -m -c "{ $exec > $logfile 2>&1 & }; echo \$!" || exit 1
+	exit 0
+fi
+
+# b/c calling "$*" from inside a function is a bit meaningless.
+export HJ_ORIGINAL_STARTUP_COMMAND="$0 $*"
+
 start()
 {
     echo -n $"Starting $prog: "
@@ -29,9 +40,15 @@ start()
 		echo -n "$prog seems to be running already" && warning
 		echo
     else
-		nohup su $user --shell=/bin/bash -c "${exec}" > $logfile 2>&1 &
+		# This method makes a process that lingers...
+		#nohup runuser -s /bin/bash $user -c "${exec}" > $logfile 2>&1 &
+		#PID=$!
+
+		# Run ourself again (as a sub-program) with the correct user
+		export HJ_STARTUP_BYPASS=true
+		PID=$(runuser -s /bin/bash $user -c "$HJ_ORIGINAL_STARTUP_COMMAND")
 		retval=$?
-		PID=$!
+
 		[ $retval -eq 0 ] && touch ${lockfile} && success || failure
 		echo
 		echo $PID > ${pidfile}
@@ -75,6 +92,9 @@ status()
 			echo 2>&1 "$prog is dead, but subsystem is locked, pid was $PID"
 		elif grep -q java "/proc/$PID/cmdline" ; then
 			echo 2>&1 "$prog is running, pid = $PID"
+			retval=0
+		elif grep -q runuser "/proc/$PID/cmdline" ; then
+			echo 2>&1 "$prog is running, pid = $PID (runuser)"
 			retval=0
 		else
 			echo 2>&1 "pid $PID is running, but does not seem to be hyperjetty"
