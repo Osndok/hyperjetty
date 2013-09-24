@@ -23,5 +23,6 @@ public enum ServletProps
     SERVICE_PORT,
     STACK_SIZE,
     TAGS,
-    VERSION
+    VERSION,
+    WITHOUT
 }

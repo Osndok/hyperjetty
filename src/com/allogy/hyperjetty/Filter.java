@@ -317,7 +317,20 @@ class Filter
         return this.options.get(option);
     }
 
-    private void addToOrList(Set<String> set, String s)
+    Set<String> without;
+
+    public
+    void without(String option)
+    {
+        if (this.without==null)
+        {
+            this.without=new HashSet<String>();
+        }
+        addToOrList(this.without, option);
+    }
+
+    private
+    void addToOrList(Set<String> set, String s)
     {
         if (s.indexOf(',')>0)
         {

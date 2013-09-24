@@ -28,6 +28,7 @@ import static com.allogy.hyperjetty.ServletProps.SERVICE_PORT;
 import static com.allogy.hyperjetty.ServletProps.STACK_SIZE;
 import static com.allogy.hyperjetty.ServletProps.TAGS;
 import static com.allogy.hyperjetty.ServletProps.VERSION;
+import static com.allogy.hyperjetty.ServletProps.WITHOUT;
 
 /**
  * User: robert
@@ -477,6 +478,20 @@ public class Service implements Runnable
 
         LaunchOptions launchOptions=new LaunchOptions(libDirectory);
 
+        {
+            String without=p.getProperty(WITHOUT.toString());
+            if (without!=null)
+            {
+                String[] optionNames=without.split(",");
+
+                for (String optionName : optionNames)
+                {
+                    log.println("without: "+optionName);
+                    launchOptions.blacklist(optionName);
+                }
+            }
+        }
+
         launchOptions.enable("default");
         {
             String launchOptionsCsv=p.getProperty(OPTIONS.toString());
@@ -568,7 +583,7 @@ public class Service implements Runnable
 
         sb.append(" --stats unsecure"); //starts a "/stats" servlet... probably harmless (minor overhead)
 
-        for (String jettyConfigFile : launchOptions.jettyConfigFiles)
+        for (String jettyConfigFile : launchOptions.getJettyConfigFiles())
         {
             sb.append(" --config ").append(jettyConfigFile);
         }
@@ -1581,16 +1596,19 @@ public class Service implements Runnable
 
         /* "Mandatory" arguments */
         String war     = theOneRequired("war" , filter.war );
-        String name    = theOneRequired("name", filter.name);
-        String path    = theOneRequired("path", filter.path);
 
         /* Optional arguments */
+        String name        = oneOrNull("name", filter.name);
+        String path        = oneOrNull("path", filter.path);
+
         String tag         = commaJoinedOrNull("tag"  , filter.tag  );
         String version     = commaJoinedOrNull("version", filter.version);
 
         String heapMemory  = oneOrNull("heap", filter.heap);
         String permMemory  = oneOrNull("perm", filter.perm);
         String stackMemory = oneOrNull("stack", filter.stack);
+
+        String withoutOptions = commaJoinedOrNull("without", filter.without);
 
         /* Launch options */
         String dry  = filter.getOption("dry", null);
@@ -1610,6 +1628,22 @@ public class Service implements Runnable
             }
             log.println("client supplied "+numFiles+" files");
             return;
+        }
+
+        String basename=stripPathSuffixAndVersionNumber(war);
+
+        log.println("BASE="+basename);
+
+        if (name==null)
+        {
+            name=guessNameFromWar(basename);
+            out.println("* guessed application name from war");
+        }
+
+        if (path==null)
+        {
+            path=guessPathFromWar(basename);
+            out.println("* guessed path from war name");
         }
 
         log.println("WAR ="+war );
@@ -1726,6 +1760,11 @@ public class Service implements Runnable
             p.setProperty(PATH.toString(), path);
         }
 
+        if (withoutOptions!=null)
+        {
+            p.setProperty(WITHOUT.toString(), withoutOptions);
+        }
+
         if (USE_BIG_TAPESTRY_DEFAULTS)
         {
             //FROM: http://tapestry.apache.org/specific-errors-faq.html
@@ -1789,6 +1828,74 @@ public class Service implements Runnable
         }
         out.println("GOOD");
         out.println(retval);
+    }
+
+    private
+    String stripPathSuffixAndVersionNumber(String name)
+    {
+        int slash=name.lastIndexOf('/');
+        if (slash >0) name=name.substring(slash+1);
+        int period = name.lastIndexOf('.');
+        if (period>0) name=name.substring(0, period);
+        int hypen  = name.lastIndexOf('-');
+        if (hypen >0)
+        {
+            String beforeHypen=name.substring(0, hypen);
+            String afterHypen=name.substring(hypen+1);
+            if (looksLikeVersionNumber(afterHypen))
+            {
+                return beforeHypen;
+            }
+            else
+            {
+                return name;
+            }
+        }
+        return name;
+    }
+
+    private
+    boolean looksLikeVersionNumber(String s)
+    {
+        for(int i=s.length()-1; i>=0; i--)
+        {
+            char c=s.charAt(i);
+            if (c>='0' && c<='9') continue;
+            if (c=='.') continue;
+            return false;
+        }
+        return s.length()>0;
+    }
+
+    private
+    String guessPathFromWar(String warBaseName)
+    {
+        int hypen  = warBaseName.lastIndexOf('-');
+
+        if (hypen>0)
+        {
+            System.err.println("guessPathFromWar-1: "+warBaseName);
+            return "/"+warBaseName.substring(hypen+1);
+        }
+        else
+        {
+            System.err.println("guessPathFromWar-2: "+warBaseName);
+            return "/"+warBaseName;
+        }
+    }
+
+    private
+    String guessNameFromWar(String warBaseName)
+    {
+        int period=warBaseName.lastIndexOf('.');
+        if (period>0)
+        {
+            return warBaseName.substring(0, period);
+        }
+        else
+        {
+            return warBaseName;
+        }
     }
 
     private String commaJoinedOrNull(String fieldName, Set<String> set)
@@ -1974,11 +2081,23 @@ public class Service implements Runnable
                 continue;
             }
 
-            //------------
-            // A hack to accept entries like --not-port 123 & --except-name bob
+            // "filter" may be change
             Filter filter=building;
 
-            if (flag.contains("not-") || flag.contains("except-"))
+            //----------- no-argument options
+
+            if (flag.contains("without-") && argument==null)
+            {
+                String optionName=flagToOptionName(flag);
+                log.println("* without: "+optionName);
+                filter.without(optionName);
+                continue;
+            }
+
+            //------------
+            // A hack to accept entries like --not-port 123 & --except-name bob
+
+            if (flag.contains("not-") || flag.contains("except-") || flag.contains("without-"))
             {
                 filter=filter.andNot();
             }
@@ -2052,6 +2171,11 @@ public class Service implements Runnable
                     log.println("* option: "+optionName+" = "+value);
                     filter.option(optionName, value);
                 }
+            }
+            else if (flag.endsWith("without"))
+            {
+                log.println("* without: "+argument);
+                filter.without(argument);
             }
             else
             {

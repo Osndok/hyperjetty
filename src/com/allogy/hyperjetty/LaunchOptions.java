@@ -12,19 +12,22 @@ public class LaunchOptions
 {
     private final File optionsDirectory;
 
-    public LaunchOptions(File libDirectory)
+    public
+    LaunchOptions(File libDirectory)
     {
         this.optionsDirectory=new File(libDirectory, "options");
     }
 
     private Set<String> jarFiles=new HashSet<String>();
 
-    public void addJar(File jar)
+    public
+    void addJar(File jar)
     {
         jarFiles.add(jar.getAbsolutePath());
     }
 
-    public void appendClassPath(StringBuilder sb)
+    public
+    void appendClassPath(StringBuilder sb)
     {
         Iterator<String> i=jarFiles.iterator();
         sb.append(i.next());
@@ -35,21 +38,43 @@ public class LaunchOptions
         }
     }
 
-    Set<String> jettyConfigFiles=new HashSet<String>();
+    private final Set<String> blacklistedOptionNames=new HashSet<String>();
 
-    public void addJettyConfig(File xml)
+    private final Set <String> jettyConfigFiles=new HashSet<String>();
+
+    public
+    Set<String> getJettyConfigFiles()
+    {
+        return jettyConfigFiles;
+    }
+
+    public
+    void addJettyConfig(File xml)
     {
         jettyConfigFiles.add(xml.getAbsolutePath());
+    }
+
+    public
+    void blacklist(String optionName)
+    {
+        blacklistedOptionNames.add(optionName);
     }
 
     /**
      * Given an option's common-name (like "shared-sessions"), locate it's required config files
      * and jar files.
      */
-    public void enable(String optionName) throws IOException
+    public
+    void enable(String optionName) throws IOException
     {
         PrintStream log=System.err;
         File optionDescriptionFile=new File(optionsDirectory, optionName+".config");
+
+        if (blacklistedOptionNames.contains(optionName))
+        {
+            log.println("blacklisted: "+optionDescriptionFile);
+            return;
+        }
 
         if (optionDescriptionFile.exists())
         {
