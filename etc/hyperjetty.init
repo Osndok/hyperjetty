@@ -29,7 +29,7 @@ start()
 		echo -n "$prog seems to be running already" && warning
 		echo
     else
-		su $user --shell=/bin/bash -c "nohup ${exec}" > $logfile 2>&1 &
+		nohup su $user --shell=/bin/bash -c "${exec}" > $logfile 2>&1 &
 		retval=$?
 		PID=$!
 		[ $retval -eq 0 ] && touch ${lockfile} && success || failure
