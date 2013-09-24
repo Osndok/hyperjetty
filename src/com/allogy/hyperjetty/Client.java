@@ -31,6 +31,16 @@ public class Client
         String host=Service.systemPropertyOrEnvironment("HOST", "localhost");
         String port=Service.systemPropertyOrEnvironment("CONTROL_PORT", "5000");
 
+        //Allows one to simply: "hj launch my-file.war" (i.e. omit the "war" flag)...
+        if (args.length==2 && args[0].equals("launch"))
+        {
+            args=new String[] {
+                    args[0],
+                    "--war",
+                    args[1]
+            };
+        }
+
         List<File> files=new ArrayList();
 
         boolean thisArgIsHost=false;
