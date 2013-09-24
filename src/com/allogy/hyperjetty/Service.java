@@ -1637,13 +1637,13 @@ public class Service implements Runnable
         if (name==null)
         {
             name=guessNameFromWar(basename);
-            out.println("* guessed application name from war");
+            log.println("* guessed application name from war");
         }
 
         if (path==null)
         {
             path=guessPathFromWar(basename);
-            out.println("* guessed path from war name");
+            log.println("* guessed path from war name");
         }
 
         log.println("WAR ="+war );
