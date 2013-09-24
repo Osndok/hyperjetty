@@ -106,13 +106,16 @@ chmod 755 ./etc/init.d/hyperjetty
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-/usr/sbin/useradd -c "Hyper Jetty" -u 48 -s /sbin/nologin -r -d /var/lib/hyperjetty hyperjetty 2> /dev/null || :
+# Add the "apache" user
+getent group  hyperjetty >/dev/null || groupadd -r hyperjetty
+getent passwd hyperjetty >/dev/null || \
+	/usr/sbin/useradd -c "Hyper Jetty" -s /sbin/nologin -r -d /var/lib/hyperjetty hyperjetty 2> /dev/null || :
 
 %post
 /sbin/chkconfig --add hyperjetty
 
 %files
-%defattr(-,hyperjetty,root,-)
+%defattr(-,hyperjetty,hyperjetty,-)
 %doc
 /usr/bin/hj
 /usr/sbin/hyperjettyd

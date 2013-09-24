@@ -14,6 +14,7 @@ prog=$(basename $exec)
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
+user=hyperjetty
 logfile=/var/log/hyperjetty/service.log
 pidfile=/var/run/$prog
 lockfile=/var/lock/subsys/$prog
@@ -28,7 +29,7 @@ start()
 		echo -n "$prog seems to be running already" && warning
 		echo
     else
-		nohup ${exec} > $logfile 2>&1 &
+		su $user -c "nohup ${exec}" > $logfile 2>&1 &
 		retval=$?
 		PID=$!
 		[ $retval -eq 0 ] && touch ${lockfile} && success || failure
