@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        beta
-Release:        21
+Release:        22
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -106,10 +106,11 @@ chmod 755 ./etc/init.d/hyperjetty
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-# Add the "apache" user
-getent group  hyperjetty >/dev/null || groupadd -r hyperjetty
+
+#dont: getent group  hyperjetty >/dev/null || groupadd -r hyperjetty
+#..or else this will fail with: "group already exists" :(
 getent passwd hyperjetty >/dev/null || \
-	/usr/sbin/useradd -c "Hyper Jetty" -s /sbin/nologin -r -d /var/lib/hyperjetty hyperjetty 2> /dev/null || :
+	/usr/sbin/useradd -c "Hyper Jetty" -s /sbin/nologin -r -d /var/lib/hyperjetty hyperjetty
 
 %post
 /sbin/chkconfig --add hyperjetty
