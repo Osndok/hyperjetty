@@ -1665,10 +1665,45 @@ public class Service implements Runnable
             return;
         }
 
-        PortReservation portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+        PortReservation portReservation;
+
+        if (filter.port!=null)
+        {
+            String servicePort=oneOrNull("servicePort", filter.port);
+
+            if (filter.jmxPort!=null)
+            {
+                log.println("(!) jmx & service port were both specified");
+                String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
+                portReservation=PortReservation.exactly(servicePort, jmxPort);
+            }
+            else
+            {
+                log.println("(!) service port was specified");
+                portReservation=PortReservation.givenFixedServicePort(servicePort, minimumServicePort, minimumJMXPort);
+            }
+        }
+        else
+        if (filter.jmxPort != null)
+        {
+            log.println("(!) jmx port was specified");
+            String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
+            portReservation=PortReservation.givenFixedJMXPort(jmxPort, minimumServicePort, minimumJMXPort);
+        }
+        else
+        {
+            portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+        }
 
         int servicePort=portReservation.getServicePort();
         int firstAttemptAtAServicePort=servicePort;
+
+        if (configFileForServicePort(servicePort).exists())
+        {
+            log.println("port "+servicePort+" is already allocated (config file exists)");
+            if (filter.port   !=null) { readAll(in); out.println("ERROR: the specified port is already allocated: " + servicePort); return; }
+            if (filter.jmxPort!=null) { readAll(in); out.println("ERROR: the equivalent service port (for specified JMX port) is already allocated: " + portReservation.getJmxPort() + " (jmx) ---> " + servicePort); return; }
+        }
 
         while (configFileForServicePort(servicePort).exists())
         {
@@ -1844,6 +1879,12 @@ public class Service implements Runnable
         }
         out.println("GOOD");
         out.println(retval);
+    }
+
+    private
+    void readAll(InputStream in) throws IOException
+    {
+        while (in.read()>=0);
     }
 
     private

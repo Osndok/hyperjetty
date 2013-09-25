@@ -97,4 +97,42 @@ class PortReservation
 
         throw new IllegalStateException("tried all "+MAX+" available ports, could not locate valid pair");
     }
+
+    public static
+    PortReservation exactly(String servicePort, String jmxPort)
+    {
+        try {
+            return new PortReservation(Integer.parseInt(servicePort), Integer.parseInt(jmxPort));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static
+    PortReservation givenFixedServicePort(String servicePort, int minimumServicePort, int minimumJMXPort)
+    {
+        int offset=minimumJMXPort-minimumServicePort;
+        int port=Integer.parseInt(servicePort);
+        int jmxPort=port+offset;
+
+        try {
+            return new PortReservation(port, jmxPort);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static
+    PortReservation givenFixedJMXPort(String s_jmxPort, int minimumServicePort, int minimumJMXPort)
+    {
+        int offset=minimumJMXPort-minimumServicePort;
+        int jmxPort=Integer.parseInt(s_jmxPort);//port+offset;
+        int port=jmxPort-offset;
+
+        try {
+            return new PortReservation(port, jmxPort);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
