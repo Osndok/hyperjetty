@@ -674,16 +674,17 @@ public class Service implements Runnable
         if (!presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
         {
             String name=p.getProperty(NAME.toString());
-            swapLatestLogFileLinks(p, new File(logFile  ), name+".latest.log"   );
-            swapLatestLogFileLinks(p, new File(accessLog), name+".latest.access");
+            swapLatestLogFileLinks(new File(logFile  ), name+".latest.log"   );
+            swapLatestLogFileLinks(new File(accessLog), name+".latest.access");
         }
 
         return pid;
     }
 
     private
-    void swapLatestLogFileLinks(Properties p, File logFile, String genericBase)
+    void swapLatestLogFileLinks(File logFile, String genericBase)
     {
+        createEmptyLogFile(logFile);
         try {
             String[] command=new String[]{
                 "/bin/ln",
@@ -701,6 +702,19 @@ public class Service implements Runnable
         }
         catch (Exception e)
         {
+            e.printStackTrace();
+        }
+    }
+
+    private
+    void createEmptyLogFile(File logFile)
+    {
+        try {
+            if (!logFile.exists() && !logFile.createNewFile())
+            {
+                log.println("ERROR: unable to create: "+logFile);
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
