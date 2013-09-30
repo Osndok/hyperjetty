@@ -622,6 +622,12 @@ public class Service implements Runnable
 
         ProcessBuilder processBuilder=new ProcessBuilder(commandLine);
 
+        Map<String, String> env = processBuilder.environment();
+        env.put("HJ_PORT"      , Integer.toString(servicePort));
+        env.put("HJ_JMX_PORT"  , p.getProperty(JMX_PORT.toString()));
+        env.put("HJ_LOG"       , logFile);
+        env.put("HJ_ACCESS_LOG", accessLog);
+
         processBuilder.redirectErrorStream(true);
 
         Process process=processBuilder.start();
