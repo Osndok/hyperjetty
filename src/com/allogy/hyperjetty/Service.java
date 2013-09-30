@@ -581,7 +581,14 @@ public class Service implements Runnable
             sb.append(" org.mortbay.jetty.runner.Runner");
         }
 
-        sb.append(" --stats unsecure"); //starts a "/stats" servlet... probably harmless (minor overhead)
+        //NB: "--without-stats" ---yields--> isBlacklisted("stat")
+        boolean hasStatsServlet=(!launchOptions.isBlacklisted("stat"));
+
+        if (hasStatsServlet)
+        {
+            //starts a "/stats" servlet... probably harmless (minor overhead)
+            sb.append(" --stats unsecure");
+        }
 
         for (String jettyConfigFile : launchOptions.getJettyConfigFiles())
         {
@@ -627,6 +634,7 @@ public class Service implements Runnable
         env.put("HJ_JMX_PORT"  , p.getProperty(JMX_PORT.toString()));
         env.put("HJ_LOG"       , logFile);
         env.put("HJ_ACCESS_LOG", accessLog);
+        env.put("HJ_STATS"     , (hasStatsServlet?"TRUE":"FALSE"));
 
         processBuilder.redirectErrorStream(true);
 

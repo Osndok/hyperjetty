@@ -60,6 +60,12 @@ public class LaunchOptions
         blacklistedOptionNames.add(optionName);
     }
 
+    public
+    boolean isBlacklisted(String optionName)
+    {
+        return blacklistedOptionNames.contains(optionName);
+    }
+
     /**
      * Given an option's common-name (like "shared-sessions"), locate it's required config files
      * and jar files.
