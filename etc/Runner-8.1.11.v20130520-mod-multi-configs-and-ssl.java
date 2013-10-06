@@ -355,9 +355,10 @@ public class Runner
                         rules[0]=rule;
 
                         rewriteHandler.setRules(rules);
-                        //rewriteHandler.setHandler(_server.getHandler());
-                        //_server.setHandler(rewriteHandler);
-                        prependHandler(rewriteHandler, handlers);
+                        rewriteHandler.setHandler(handlers);
+                        handlers=new HandlerCollection();
+                        _server.setHandler(handlers);
+                        //prependHandler(rewriteHandler, handlers);
 
                         //_server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
                     }
