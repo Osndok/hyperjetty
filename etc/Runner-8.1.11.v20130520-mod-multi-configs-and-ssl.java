@@ -339,7 +339,7 @@ public class Runner
                         handlers.addHandler( _logHandler );
                     }
 
-                    _server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
+                    //_server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
 
                     //Based on: http://download.eclipse.org/jetty/stable-7/apidocs/org/eclipse/jetty/rewrite/handler/RewriteHandler.html
                     if (_sslSensitivity)
@@ -358,7 +358,7 @@ public class Runner
                         rewriteHandler.setHandler(_server.getHandler());
                         _server.setHandler(rewriteHandler);
 
-                        _server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
+                        //_server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
                     }
 
                     //check a connector is configured to listen on
