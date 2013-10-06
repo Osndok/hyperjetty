@@ -1183,6 +1183,7 @@ public class Request implements HttpServletRequest
      */
     public int getServerPort()
     {
+		/*
         if (_port <= 0)
         {
             if (_serverName == null)
@@ -1196,6 +1197,7 @@ public class Request implements HttpServletRequest
                     _port = _endp == null?0:_endp.getLocalPort();
             }
         }
+		*/
 
         if (_port <= 0)
         {
