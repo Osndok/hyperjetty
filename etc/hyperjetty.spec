@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        beta
-Release:        36
+Release:        37
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -71,6 +71,9 @@ cp etc/Request.class  org/eclipse/jetty/server/
 
 zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
 jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+
+zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
+jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
 
 rm -rfv org
 
