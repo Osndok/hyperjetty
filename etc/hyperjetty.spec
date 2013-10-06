@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        beta
-Release:        30
+Release:        31
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure

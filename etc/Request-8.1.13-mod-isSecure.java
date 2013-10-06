@@ -1183,7 +1183,6 @@ public class Request implements HttpServletRequest
      */
     public int getServerPort()
     {
-		/*
         if (_port <= 0)
         {
             if (_serverName == null)
@@ -1197,7 +1196,6 @@ public class Request implements HttpServletRequest
                     _port = _endp == null?0:_endp.getLocalPort();
             }
         }
-		*/
 
         if (_port <= 0)
         {
@@ -1455,7 +1453,7 @@ public class Request implements HttpServletRequest
     public boolean isSecure()
     {
 		//We can get method to change using a rewrite rule, can't really effect the connection innards...
-		if (_port == 443 || _method.equals("https")) return true;
+		if (_method.equals("https") || getServerPort()==443) return true;
 
         return _connection.isConfidential(this);
     }
