@@ -342,6 +342,8 @@ public class Runner
                     //_server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
 
                     //Based on: http://download.eclipse.org/jetty/stable-7/apidocs/org/eclipse/jetty/rewrite/handler/RewriteHandler.html
+                    _sslSensitivity=false;
+
                     if (_sslSensitivity)
                     {
                         RewriteHandler rewriteHandler=new RewriteHandler();
