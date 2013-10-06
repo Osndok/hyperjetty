@@ -39,6 +39,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ShutdownMonitor;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.server.handler.DebugHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
@@ -351,11 +352,15 @@ public class Runner
                         Rule[] rules=new Rule[1];
                         rules[0]=rule;
 
+                        addDebugHandler(handlers, "/tmp/post_rewrite.log");
+
                         rewriteHandler.setRules(rules);
                         rewriteHandler.setHandler(handlers);
                         handlers=new HandlerCollection();
                         handlers.addHandler(rewriteHandler);
                         _server.setHandler(handlers);
+
+                        addDebugHandler(handlers, "/tmp/pre_rewrite.log");
                     }
 
                     //check a connector is configured to listen on
@@ -445,8 +450,20 @@ public class Runner
             _logHandler.setRequestLog(requestLog);
         }
     }
-    
-    
+
+    protected void addDebugHandler(HandlerCollection handlers, String filePath)
+    {
+        try {
+            DebugHandler debugHandler = new DebugHandler();
+            debugHandler.setOutputStream(new java.io.FileOutputStream(filePath));
+            //debugHandler.setHandler(server.getHandler());
+
+            handlers.addHandler(debugHandler);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     protected void prependHandler (Handler handler, HandlerCollection handlers)
     {
         if (handler == null || handlers == null)
