@@ -47,7 +47,7 @@ make out/hyperjetty.jar
 # Only until 8.x has multi-configs or 9.x becomes usable
 # ...and until we use a jetty.xml configuration, so we can add the rewrite handlers for ssl
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs-and-ssl.java > etc/Runner.java
-javac -cp %{SOURCE1} etc/Runner.java
+javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
 
 %install
 rm   -rf $RPM_BUILD_ROOT
