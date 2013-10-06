@@ -339,6 +339,8 @@ public class Runner
                         handlers.addHandler( _logHandler );
                     }
 
+                    _server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
+
                     //Based on: http://download.eclipse.org/jetty/stable-7/apidocs/org/eclipse/jetty/rewrite/handler/RewriteHandler.html
                     if (_sslSensitivity)
                     {
@@ -352,15 +354,11 @@ public class Runner
                         Rule[] rules=new Rule[1];
                         rules[0]=rule;
 
-                        addDebugHandler(handlers, "/tmp/post_rewrite.log");
-
                         rewriteHandler.setRules(rules);
-                        rewriteHandler.setHandler(handlers);
-                        handlers=new HandlerCollection();
-                        handlers.addHandler(rewriteHandler);
-                        _server.setHandler(handlers);
+                        rewriteHandler.setHandler(_server.getHandler());
+                        _server.setHandler(rewriteHandler);
 
-                        addDebugHandler(handlers, "/tmp/pre_rewrite.log");
+                        _server.setHandler(addDebugHandler(_server.getHandler(), "/tmp/post_rewrite.log"));
                     }
 
                     //check a connector is configured to listen on
@@ -451,16 +449,18 @@ public class Runner
         }
     }
 
-    protected void addDebugHandler(HandlerCollection handlers, String filePath)
+    protected Handler addDebugHandler(Handler subHandler, String filePath)
     {
         try {
             DebugHandler debugHandler = new DebugHandler();
             debugHandler.setOutputStream(new java.io.FileOutputStream(filePath));
-            //debugHandler.setHandler(server.getHandler());
+            debugHandler.setHandler(subHandler);
 
-            handlers.addHandler(debugHandler);
+            //handlers.addHandler(debugHandler);
+            return debugHandler;
         } catch (IOException e) {
             e.printStackTrace();
+            return subHandler;
         }
     }
 
