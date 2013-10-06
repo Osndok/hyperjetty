@@ -564,6 +564,18 @@ public class Service implements Runnable
         if (jettyJmxJar!=null && jettyJmxJar.exists())
         {
             launchOptions.addJar(jettyJmxJar);
+
+            File jettyRewrite=new File(jettyJmxJar.getParent(), "jetty-rewrite.jar");
+
+            if (jettyRewrite.exists())
+            {
+                log.println("adding: "+jettyRewrite);
+                launchOptions.addJar(jettyRewrite);
+            }
+            else
+            {
+                log.println("dne: "+jettyRewrite);
+            }
         }
 
         launchOptions.addJar(jettyRunnerJar);
