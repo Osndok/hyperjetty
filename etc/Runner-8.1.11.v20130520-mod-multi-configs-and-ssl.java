@@ -342,7 +342,6 @@ public class Runner
                     if (_sslSensitivity)
                     {
                         RewriteHandler rewriteHandler=new RewriteHandler();
-                        prependHandler(rewriteHandler, handlers);
 
                         ForwardedSchemeHeaderRule rule=new ForwardedSchemeHeaderRule();
                         rule.setHeader("X-Forwarded-Scheme");
@@ -353,6 +352,10 @@ public class Runner
                         rules[0]=rule;
 
                         rewriteHandler.setRules(rules);
+                        rewriteHandler.setHandler(handlers);
+                        handlers=new HandlerCollection();
+                        handlers.addHandler(rewriteHandler);
+                        _server.setHandler(handlers);
                     }
 
                     //check a connector is configured to listen on
