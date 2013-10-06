@@ -1453,7 +1453,7 @@ public class Request implements HttpServletRequest
     public boolean isSecure()
     {
 		//We can get method to change using a rewrite rule, can't really effect the connection innards...
-		if (_method.equals("https") || getServerPort()==443) return true;
+		if (_scheme.equals("https") || getServerPort()==443) return true;
 
         return _connection.isConfidential(this);
     }
