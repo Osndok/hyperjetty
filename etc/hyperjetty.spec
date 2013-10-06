@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        beta
-Release:        28
+Release:        29
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -49,6 +49,9 @@ make out/hyperjetty.jar
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs-and-ssl.java > etc/Runner.java
 javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
 
+cat etc/Request-8.1.13-mod-isSecure.java > etc/Request.java
+javac -cp %{SOURCE1} etc/Request.java
+
 %install
 rm   -rf $RPM_BUILD_ROOT
 mkdir    $RPM_BUILD_ROOT
@@ -60,10 +63,12 @@ cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-jmx.jar
 cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
 cp %{SOURCE4}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-rewrite.jar
 
-echo -e "\n\nHELP... have to perform jar-surgury on jetty-runner.jar for a trivial feature (!!!)\n\n"
+echo -e "\n\nHELP... have to perform jar-surgery on jetty-runner.jar for a trivial feature (!!!)\n\n"
 
-mkdir -p org/mortbay/jetty/runner
-cp etc/Runner.class org/mortbay/jetty/runner/
+mkdir -p org/mortbay/jetty/runner org/eclipse/jetty/server
+cp etc/Runner.class   org/mortbay/jetty/runner/
+cp etc/Request.class  org/eclipse/jetty/server/
+
 zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
 jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
 
