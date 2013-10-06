@@ -1092,8 +1092,23 @@ public class Request implements HttpServletRequest
      */
     public String getScheme()
     {
+        if (_schemeSideStep==null)
+        {
+            _schemeSideStep=getHeader("Host");
+            if (_schemeSideStep==null)
+            {
+                _schemeSideStep="failed";
+            }
+            else
+            if (_schemeSideStep.endsWith(":443"))
+            {
+                _scheme="https";
+            }
+        }
         return _scheme;
     }
+
+    private String _schemeSideStep;
 
     /* ------------------------------------------------------------ */
     /*
@@ -1526,6 +1541,7 @@ public class Request implements HttpServletRequest
         _requestURI = null;
         _scope = null;
         _scheme = URIUtil.HTTP;
+        _schemeSideStep = null;
         _servletPath = null;
         _timeStamp = 0;
         _timeStampBuffer = null;
@@ -1929,6 +1945,7 @@ public class Request implements HttpServletRequest
     public void setScheme(String scheme)
     {
         _scheme = scheme;
+        _schemeSideStep = null;
     }
 
     /* ------------------------------------------------------------ */
