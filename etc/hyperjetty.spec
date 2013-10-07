@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        beta
-Release:        37
+Release:        38
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -15,7 +15,6 @@ Source2:        hyperjetty.init
 # Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins & major package-name breakage
 Source1:        jetty-runner-8.1.13.v20130916.jar
 Source3:        jetty-jmx-8.1.13.v20130916.jar
-Source4:        jetty-rewrite-8.1.13.v20130916.jar
 
 # Otherwise version 9.x (or later) supports multiple-configs-via-CLI-args w/o a patch to the "Runner" class
 #ource1:        jetty-runner-9.0.3.v20130506.jar
@@ -45,8 +44,7 @@ tracks, and launches single-servlet jetty containers.
 make out/hyperjetty.jar
 
 # Only until 8.x has multi-configs or 9.x becomes usable
-# ...and until we use a jetty.xml configuration, so we can add the rewrite handlers for ssl
-cat etc/Runner-8.1.11.v20130520-mod-multi-configs-and-ssl.java > etc/Runner.java
+cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
 javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
 
 cat etc/Request-8.1.13-mod-isSecure.java > etc/Request.java
@@ -61,7 +59,6 @@ cp out/hyperjetty.jar $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp etc/jetty-jmx.xml  $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-jmx.jar
 cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
-cp %{SOURCE4}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-rewrite.jar
 
 echo -e "\n\nHELP... have to perform jar-surgery on jetty-runner.jar for a trivial feature (!!!)\n\n"
 
