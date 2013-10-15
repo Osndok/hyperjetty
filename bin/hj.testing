@@ -2,4 +2,4 @@
 
 export CONTROL_PORT=5001
 
-exec java -cp out/production/hyperjetty com.allogy.hyperjetty.Client "$@"
+exec java -cp out/classes com.allogy.hyperjetty.Client "$@"

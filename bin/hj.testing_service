@@ -12,5 +12,5 @@ OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
 
 test -d $LIB_DIRECTORY || mkdir $LIB_DIRECTORY
 
-exec java $OPTIONS -cp out/production/hyperjetty com.allogy.hyperjetty.Service "$@"
+exec java $OPTIONS -cp out/classes com.allogy.hyperjetty.Service "$@"
 
