@@ -451,10 +451,28 @@ public class Service implements Runnable
         return new File(etcDirectory, servicePort+".config");
     }
 
+    /**
+     * The war file & sibling directory *must* be in the same directory for jetty to notice.
+     * Otherwise it will be deployed to /tmp.
+     * @param servicePort
+     * @return
+     */
     private
     File warFileForServicePort(int servicePort)
     {
         return new File(libDirectory, servicePort+".war");
+    }
+
+    /**
+     * The war file & sibling directory *must* be in the same directory for jetty to notice.
+     * Otherwise it will be deployed to /tmp.
+     * @param servicePort
+     * @return
+     */
+    private
+    File siblingDirectoryForServicePort(int servicePort)
+    {
+        return new File(libDirectory, Integer.toString(servicePort));
     }
 
     /**
@@ -468,6 +486,8 @@ public class Service implements Runnable
     {
         File configFile=configFileForServicePort(servicePort);
         File warFile   =warFileForServicePort(servicePort);
+
+        createMagicSiblingDirectoryForJetty(servicePort);
 
         Properties p=propertiesFromFile(configFile);
 
@@ -693,6 +713,48 @@ public class Service implements Runnable
         }
 
         return pid;
+    }
+
+    /**
+     * SIDE-EFFECT: jetty's WebInfConfiguration class will notice this directory and use it over a /tmp directory
+     *
+     * @param servicePort
+     * @throws IOException
+     */
+    private
+    void createMagicSiblingDirectoryForJetty(int servicePort) throws IOException
+    {
+        File siblingDirectory = siblingDirectoryForServicePort(servicePort);
+        boolean forceJettyToRedeploy;
+
+        if (siblingDirectory.isDirectory())
+        {
+            log.println("is directory: "+siblingDirectory);
+            forceJettyToRedeploy=false;
+        }
+        else
+        if (siblingDirectory.mkdir())
+        {
+            log.println("created directory: "+siblingDirectory);
+            forceJettyToRedeploy=true;
+        }
+        else
+        {
+            throw new IOException("unable to create sibling directory: "+siblingDirectory);
+        }
+
+        if (forceJettyToRedeploy)
+        {
+            /*
+            We must either make sure the modification time of the directory (which we just created) is *older* than
+            the war file (which is pre-existing), or else trick jetty into thinking it crashed while extracting it.
+            * /
+            File extractLock=new File(contextTempDirectory, ".extract_lock");
+            extractLock.createNewFile();
+            */
+            File warFile=warFileForServicePort(servicePort);
+            siblingDirectory.setLastModified(warFile.lastModified()-1000); //some platforms have only 1-second resolution
+        }
     }
 
     private
