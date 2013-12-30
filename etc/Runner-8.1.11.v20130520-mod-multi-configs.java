@@ -695,8 +695,9 @@ class UNIXSocketConnector extends SocketConnector
             _serverSocket= newServerSocket(getHost(),getPort(),getAcceptQueueSize());
         //throws: _serverSocket.setReuseAddress(getReuseAddress());
         _localPort=_serverSocket.getLocalPort();
+        /*also throws...
         if (_localPort<=0)
             throw new IllegalStateException("port not allocated for "+this);
-
+        */
     }
 }
