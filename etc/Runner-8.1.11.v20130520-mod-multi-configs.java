@@ -340,6 +340,8 @@ public class Runner
                     Connector[] connectors = _server.getConnectors();
                     if (connectors == null || connectors.length == 0)
                     {
+                        System.err.println("NOTICE: transverse socket *CAN* be easily integrated");
+
                         Connector connector = new SelectChannelConnector();
                         connector.setPort(port);
                         _server.addConnector(connector);
@@ -348,6 +350,8 @@ public class Runner
                     }
                     else
                     {
+                        System.err.println("NOTICE: transverse socket might *NOT* be easy to integrate");
+
                         if (_enableStatsGathering)
                         {
                             for (int j=0; j<connectors.length; j++)
