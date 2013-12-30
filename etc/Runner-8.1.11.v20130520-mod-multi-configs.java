@@ -686,9 +686,17 @@ class UNIXSocketConnector extends SocketConnector
         return serverSocket;
     }
 
+    /* mostly copied from SocketConnector.java */
     @Override
-    public boolean getReuseAddress()
+    public void open() throws IOException
     {
-        return false;
+        // Create a new server socket and set to non blocking mode
+        if (_serverSocket==null || _serverSocket.isClosed())
+            _serverSocket= newServerSocket(getHost(),getPort(),getAcceptQueueSize());
+        //throws: _serverSocket.setReuseAddress(getReuseAddress());
+        _localPort=_serverSocket.getLocalPort();
+        if (_localPort<=0)
+            throw new IllegalStateException("port not allocated for "+this);
+
     }
 }
