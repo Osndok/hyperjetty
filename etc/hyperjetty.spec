@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
-Version:        beta
-Release:        40
+Version:        gamma
+Release:        1
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -11,7 +11,11 @@ URL:            http://redmine.allogy.com/projects/hyperjetty
 
 Source0:        hyperjetty-%{version}.tgz
 Source2:        hyperjetty.init
+
+# TODO: remove reduplication (jar is found *INSIDE* the tarball)
 Source4:        junixsocket-1.3.jar
+# TODO: split this off as another package... built from source or fetched from a trusted repo.
+Source5:        junixsocket-1.3-bin.tar.bz2
 
 # Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins & major package-name breakage
 Source1:        jetty-runner-8.1.13.v20130916.jar
@@ -21,7 +25,7 @@ Source3:        jetty-jmx-8.1.13.v20130916.jar
 #ource1:        jetty-runner-9.0.3.v20130506.jar
 #ource3:        jetty-jmx-9.0.3.v20130506.jar
 
-#BuildArch:     noarch
+#BuildArch:      noarch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -29,12 +33,24 @@ BuildRequires:  zip
 BuildRequires:  java
 Requires:       java
 
+Requires: libjunixsockets >= 1.5
+
 %define __jar_repack %{nil}
 
 %description
 
 A very small & fault-tolerant jetty "hypervisor" that allocates,
 tracks, and launches single-servlet jetty containers.
+
+%package -n libjunixsockets
+
+Version:   1.5
+Group:     Allogy/Infrastructure
+Summary:   JNI component that provides UNIX-domain-sockets to Java processes
+
+%description -n libjunixsockets
+
+JNI component that provides UNIX-domain-sockets to Java processes
 
 %prep
 %setup -q
@@ -55,6 +71,11 @@ javac -cp %{SOURCE1} etc/Request.java
 rm   -rf $RPM_BUILD_ROOT
 mkdir    $RPM_BUILD_ROOT
 
+tar xjf %{SOURCE5}
+mkdir -p              $RPM_BUILD_ROOT/opt/newsclub
+mv */lib-native $RPM_BUILD_ROOT/opt/newsclub
+rm -rf junixsocket-*
+
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
 cp out/hyperjetty.jar $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp etc/jetty-jmx.xml  $RPM_BUILD_ROOT/usr/lib/hyperjetty/
@@ -62,7 +83,7 @@ cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-jmx.jar
 cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
 cp %{SOURCE4}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/junixsockets.jar
 
-echo -e "\n\nHELP... have to perform jar-surgery on jetty-runner.jar for a trivial feature (!!!)\n\n"
+echo -e "\n\nHELP... performing jar-surgery on jetty-runner.jar for features.\n (1) multiple config files,\n (2) unix domain sockets\n\n"
 
 mkdir -p org/mortbay/jetty/runner org/eclipse/jetty/server
 cp etc/Runner.class   org/mortbay/jetty/runner/
@@ -136,3 +157,6 @@ getent passwd hyperjetty >/dev/null || \
 /etc/init.d/hyperjetty
 #config(noreplace) /etc/sysconfig/hyperjetty
 
+
+%files -n libjunixsockets
+/opt/newsclub/lib-native

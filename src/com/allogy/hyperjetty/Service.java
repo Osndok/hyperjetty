@@ -588,6 +588,15 @@ public class Service implements Runnable
 
         launchOptions.addJar(jettyRunnerJar);
 
+        boolean hasJUnixSockets=false;
+        File jUnixSockets=new File(jettyRunnerJar.getParentFile(), "junixsockets.jar");
+
+        if (jUnixSockets.exists())
+        {
+            hasJUnixSockets=true;
+            launchOptions.addJar(jUnixSockets);
+        }
+
         sb.append(" -cp ");
 
         launchOptions.appendClassPath(sb);
@@ -655,6 +664,11 @@ public class Service implements Runnable
         env.put("HJ_LOG"       , logFile);
         env.put("HJ_ACCESS_LOG", accessLog);
         env.put("HJ_STATS"     , (hasStatsServlet?"TRUE":"FALSE"));
+
+        if (hasJUnixSockets)
+        {
+            env.put("HJ_UNIX_SOCKET", "/sock/hj/"+servicePort);
+        }
 
         processBuilder.redirectErrorStream(true);
 
