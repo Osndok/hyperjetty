@@ -11,6 +11,7 @@ URL:            http://redmine.allogy.com/projects/hyperjetty
 
 Source0:        hyperjetty-%{version}.tgz
 Source2:        hyperjetty.init
+Source4:        junixsocket-1.3.jar
 
 # Must use version 8.x b/c 9.x is java 1.7 & has misc. broken plugins & major package-name breakage
 Source1:        jetty-runner-8.1.13.v20130916.jar
@@ -20,7 +21,7 @@ Source3:        jetty-jmx-8.1.13.v20130916.jar
 #ource1:        jetty-runner-9.0.3.v20130506.jar
 #ource3:        jetty-jmx-9.0.3.v20130506.jar
 
-BuildArch:      noarch
+#BuildArch:     noarch
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -59,6 +60,7 @@ cp out/hyperjetty.jar $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp etc/jetty-jmx.xml  $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-jmx.jar
 cp %{SOURCE1}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar
+cp %{SOURCE4}         $RPM_BUILD_ROOT/usr/lib/hyperjetty/junixsockets.jar
 
 echo -e "\n\nHELP... have to perform jar-surgery on jetty-runner.jar for a trivial feature (!!!)\n\n"
 

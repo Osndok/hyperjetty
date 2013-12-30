@@ -14,41 +14,16 @@
 
 package org.mortbay.jetty.runner;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Properties;
-import java.util.Random;
-
-import javax.transaction.UserTransaction;
-
-import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.plus.jndi.Transaction;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.NCSARequestLog;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ShutdownMonitor;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
-import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.server.nio.SelectChannelConnector;
-import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.server.handler.*;
+import org.eclipse.jetty.server.bio.SocketConnector;
+import org.eclipse.jetty.server.nio.SelectChannelConnector;
+import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlet.StatisticsServlet;
@@ -56,10 +31,25 @@ import org.eclipse.jetty.util.RolloverFileOutputStream;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.jetty.xml.XmlConfiguration;
 
+import javax.transaction.UserTransaction;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.Override;
+import java.net.ServerSocket;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
+import org.newsclub.net.unix.AFUNIXServerSocket;
+import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 public class Runner
 {
@@ -340,8 +330,6 @@ public class Runner
                     Connector[] connectors = _server.getConnectors();
                     if (connectors == null || connectors.length == 0)
                     {
-                        System.err.println("NOTICE: transverse socket *CAN* be easily integrated");
-
                         Connector connector = new SelectChannelConnector();
                         connector.setPort(port);
                         _server.addConnector(connector);
@@ -350,14 +338,45 @@ public class Runner
                     }
                     else
                     {
-                        System.err.println("NOTICE: transverse socket might *NOT* be easy to integrate");
-
                         if (_enableStatsGathering)
                         {
                             for (int j=0; j<connectors.length; j++)
                             {
                                 connectors[j].setStatsOn(true);
                             }
+                        }
+                    }
+
+                    String socketName=System.getenv("HJ_UNIX_SOCKET");
+                    if (socketName!=null)
+                    {
+                        System.err.println("NOTICE: activating transverse socket: "+socketName);
+
+                        try {
+                            File socketFile=new File(socketName);
+                            if (socketFile.exists())
+                            {
+                                //Early experimental indications are that the socket file must *NOT* exist when being opened.
+                                if (!socketFile.delete()) throw new IOException("unable to remove pre-existing unix-domain socket: "+socketFile);
+                            }
+                            else
+                            {
+                                File socketDirectory=socketFile.getParentFile();
+                                if (!socketDirectory.isDirectory() && !socketDirectory.mkdirs())
+                                {
+                                    throw new IOException("unable to create socket directory: "+socketDirectory);
+                                }
+                            }
+
+                            AFUNIXServerSocket  serverSocket = AFUNIXServerSocket.newInstance();
+                            AFUNIXSocketAddress socketAddress=new AFUNIXSocketAddress(socketFile);
+                            serverSocket.bind(socketAddress);
+
+                            _server.addConnector(new UNIXSocketConnector(serverSocket, socketAddress));
+                            System.err.println("transverse socket installed");
+
+                        } catch (Throwable t) {
+                            t.printStackTrace();
                         }
                     }
 
@@ -645,5 +664,25 @@ public class Runner
             e.printStackTrace();
             runner.usage(null);
         }
+    }
+}
+
+class UNIXSocketConnector extends SocketConnector
+{
+    private final AFUNIXSocketAddress socketAddress;
+
+    UNIXSocketConnector(AFUNIXServerSocket _serverSocket, AFUNIXSocketAddress socketAddress)
+    {
+        this._serverSocket=_serverSocket;
+        this.socketAddress=socketAddress;
+    }
+
+    @Override
+    protected
+    ServerSocket newServerSocket(String host, int port,int backlog) throws IOException
+    {
+        AFUNIXServerSocket serverSocket=AFUNIXServerSocket.newInstance();
+        serverSocket.bind(socketAddress, backlog);
+        return serverSocket;
     }
 }
