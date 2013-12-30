@@ -685,4 +685,10 @@ class UNIXSocketConnector extends SocketConnector
         serverSocket.bind(socketAddress, backlog);
         return serverSocket;
     }
+
+    @Override
+    public boolean getReuseAddress()
+    {
+        return false;
+    }
 }
