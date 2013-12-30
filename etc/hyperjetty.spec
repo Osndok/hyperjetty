@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        1
+Release:        2
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -71,9 +71,11 @@ javac -cp %{SOURCE1} etc/Request.java
 rm   -rf $RPM_BUILD_ROOT
 mkdir    $RPM_BUILD_ROOT
 
+mkdir -p              $RPM_BUILD_ROOT/sock/hj
+
 tar xjf %{SOURCE5}
 mkdir -p              $RPM_BUILD_ROOT/opt/newsclub
-mv */lib-native $RPM_BUILD_ROOT/opt/newsclub
+mv     */lib-native   $RPM_BUILD_ROOT/opt/newsclub
 rm -rf junixsocket-*
 
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
@@ -152,6 +154,7 @@ getent passwd hyperjetty >/dev/null || \
 /usr/bin/hj
 /usr/sbin/hyperjettyd
 %dir /var/log/hyperjetty
+%dir /sock/hj
 /var/lib/hyperjetty
 /usr/lib/hyperjetty
 /etc/init.d/hyperjetty
