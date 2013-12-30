@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        2
+Release:        5
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -45,6 +45,7 @@ tracks, and launches single-servlet jetty containers.
 %package -n libjunixsockets
 
 Version:   1.5
+Release:   3
 Group:     Allogy/Infrastructure
 Summary:   JNI component that provides UNIX-domain-sockets to Java processes
 
@@ -90,9 +91,10 @@ echo -e "\n\nHELP... performing jar-surgery on jetty-runner.jar for features.\n 
 mkdir -p org/mortbay/jetty/runner org/eclipse/jetty/server
 cp etc/Runner.class   org/mortbay/jetty/runner/
 cp etc/Request.class  org/eclipse/jetty/server/
+cp etc/UNIXSocketConnector.class org/mortbay/jetty/runner/
 
 zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
-jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class org/mortbay/jetty/runner/UNIXSocketConnector.class
 
 zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
 jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
