@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        8
+Release:        9
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -30,8 +30,10 @@ Source3:        jetty-jmx-8.1.13.v20130916.jar
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  zip
-BuildRequires:  java
 Requires:       java
+
+BuildRequires:  java-1.6.0-openjdk-devel
+%define javac /usr/lib/jvm/java-1.6.0-openjdk/bin/javac
 
 Requires: libjunixsockets >= 1.5
 
@@ -63,10 +65,10 @@ make out/hyperjetty.jar
 
 # Only until 8.x has multi-configs or 9.x becomes usable
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
-javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
+%javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
 
 cat etc/Request-8.1.13-mod-isSecure.java > etc/Request.java
-javac -cp %{SOURCE1} etc/Request.java
+%javac -cp %{SOURCE1} etc/Request.java
 
 %install
 rm   -rf $RPM_BUILD_ROOT
