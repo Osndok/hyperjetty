@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        9
+Release:        10
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -34,6 +34,7 @@ Requires:       java
 
 BuildRequires:  java-1.6.0-openjdk-devel
 %define javac /usr/lib/jvm/java-1.6.0-openjdk/bin/javac
+%define jar   /usr/lib/jvm/java-1.6.0-openjdk/bin/jar
 
 Requires: libjunixsockets >= 1.5
 
@@ -95,11 +96,11 @@ cp etc/Runner.class   org/mortbay/jetty/runner/
 cp etc/Request.class  org/eclipse/jetty/server/
 cp etc/UNIXSocketConnector.class org/mortbay/jetty/runner/
 
-zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
-jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class org/mortbay/jetty/runner/UNIXSocketConnector.class
+zip  -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+%jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class org/mortbay/jetty/runner/UNIXSocketConnector.class
 
-zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
-jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
+zip  -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
+%jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
 
 rm -rfv org
 
