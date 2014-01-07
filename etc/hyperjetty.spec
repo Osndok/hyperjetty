@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        10
+Release:        11
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
@@ -33,8 +33,7 @@ BuildRequires:  zip
 Requires:       java
 
 BuildRequires:  java-1.6.0-openjdk-devel
-%define javac /usr/lib/jvm/java-1.6.0-openjdk/bin/javac
-%define jar   /usr/lib/jvm/java-1.6.0-openjdk/bin/jar
+%define JAVA_BIN /usr/lib/jvm/java-1.6.0-openjdk/bin
 
 Requires: libjunixsockets >= 1.5
 
@@ -62,14 +61,18 @@ JNI component that provides UNIX-domain-sockets to Java processes
 
 %build
 #configure
+
+# Make sure we use the right java version
+export PATH=%JAVA_BIN:$PATH
+
 make out/hyperjetty.jar
 
 # Only until 8.x has multi-configs or 9.x becomes usable
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
-%javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
+javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
 
 cat etc/Request-8.1.13-mod-isSecure.java > etc/Request.java
-%javac -cp %{SOURCE1} etc/Request.java
+javac -cp %{SOURCE1} etc/Request.java
 
 %install
 rm   -rf $RPM_BUILD_ROOT
@@ -96,11 +99,11 @@ cp etc/Runner.class   org/mortbay/jetty/runner/
 cp etc/Request.class  org/eclipse/jetty/server/
 cp etc/UNIXSocketConnector.class org/mortbay/jetty/runner/
 
-zip  -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
-%jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class org/mortbay/jetty/runner/UNIXSocketConnector.class
+zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class
+jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/mortbay/jetty/runner/Runner.class org/mortbay/jetty/runner/UNIXSocketConnector.class
 
-zip  -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
-%jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
+zip -d $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
+jar uf $RPM_BUILD_ROOT/usr/lib/hyperjetty/jetty-runner.jar org/eclipse/jetty/server/Request.class
 
 rm -rfv org
 
