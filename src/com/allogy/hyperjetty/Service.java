@@ -2572,9 +2572,9 @@ public class Service implements Runnable
                     String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
 
                     line.append(" | LIVE |  ");
-                    line.append(String.format("??? of %12s", heap));
+                    line.append(String.format("???? of %4s", heap));
                     line.append(" |  ");
-                    line.append(String.format("??? of %12s", perm));
+                    line.append(String.format("???? of %4s", perm));
                     line.append(" ");
                 }
                 else
