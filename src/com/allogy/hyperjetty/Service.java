@@ -2677,7 +2677,11 @@ public class Service implements Runnable
 
         ServletStateChecker servletStateChecker=new PropFileServletChecker();
 
-        for (File file : etcDirectory.listFiles())
+        File[] files=etcDirectory.listFiles();
+        if (files==null) return retval;
+        Arrays.sort(files);
+
+        for (File file : files)
         {
             if (!file.getName().endsWith(".config"))
             {
@@ -2697,7 +2701,11 @@ public class Service implements Runnable
     {
         List<Properties> retval=new ArrayList<Properties>();
 
-        for (File file : etcDirectory.listFiles())
+        File[] files=etcDirectory.listFiles();
+        if (files==null) return retval;
+        Arrays.sort(files);
+
+        for (File file : files)
         {
             if (!file.getName().endsWith(".config"))
             {
