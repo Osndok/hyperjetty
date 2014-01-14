@@ -548,6 +548,17 @@ public class Service implements Runnable
             sb.append(" -XX:MaxPermSize=").append(arg);
         }
 
+        // See #4342 for reasoning, heap debugger does not like the default OpenJDK Garbage Collector (?!?!)
+        sb.append(" -XX:+UseG1GC"); // see: http://www.oracle.com/webfolder/technetwork/tutorials/obe/java/G1GettingStarted/index.html
+        sb.append(" -XX:+PrintGC"); // print gc pause durations along with what "type" they were
+        sb.append(" -XX:+HeapDumpOnOutOfMemoryError");
+
+        File saferHeapDumpPath=new File("/var/lib/hyperjetty");
+        if (saferHeapDumpPath.isDirectory())
+        {
+            sb.append(" -XX:HeapDumpPath=").append(saferHeapDumpPath.toString());
+        }
+
         if ((arg=p.getProperty(JMX_PORT.toString()))!=null)
         {
             if (jettyJmxXml.exists())
