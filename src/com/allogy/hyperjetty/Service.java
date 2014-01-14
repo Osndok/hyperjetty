@@ -676,6 +676,10 @@ public class Service implements Runnable
         env.put("HJ_ACCESS_LOG", accessLog);
         env.put("HJ_STATS"     , (hasStatsServlet?"TRUE":"FALSE"));
 
+        env.remove("LS_COLORS");
+        env.remove("SSH_CLIENT");
+        env.remove("SSH_CONNECTION");
+
         if (hasJUnixSockets)
         {
             env.put("HJ_UNIX_SOCKET", "/sock/hj/"+servicePort);

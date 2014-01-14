@@ -133,6 +133,8 @@ export JETTY_RUNNER_JAR=/usr/lib/hyperjetty/jetty-runner.jar
 export JETTY_JMX_XML=/usr/lib/hyperjetty/jetty-jmx.xml
 export JETTY_JMX_JAR=/usr/lib/hyperjetty/jetty-jmx.jar
 
+unset LS_COLORS
+
 OPTIONS="-Dvisualvm.display.name=Jetty-Hypervisor"
 OPTIONS="$OPTIONS -Xmx33m"
 OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
