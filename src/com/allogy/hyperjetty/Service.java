@@ -2567,7 +2567,15 @@ public class Service implements Runnable
                 }
                 if (smu==null)
                 {
-                    line.append(" | LIVE |    No JMX     |    No JMX     ");
+                    //line.append(" | LIVE |    No JMX     |    No JMX     ");
+                    String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
+                    String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+
+                    line.append(" | LIVE |  ");
+                    line.append(String.format("??? of %12s", heap));
+                    line.append(" |  ");
+                    line.append(String.format("??? of %12s", perm));
+                    line.append(" ");
                 }
                 else
                 {
