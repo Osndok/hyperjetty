@@ -23,7 +23,7 @@ if [ -n "${HJ_STARTUP_BYPASS:-}" ]; then
 	# We are now running as the correct user, so it's important not to echo anything to stderr
 	# because we don't have permission to write to the terminal (?!).
 	# Let's just go ahead and run the desired program in daemon mode, print the pid & exit...
-	bash -m -c "{ $exec > $logfile 2>&1 & }; echo \$!" || exit 1
+	bash -m -c "{ $exec >> $logfile 2>&1 & }; echo \$!" || exit 1
 	exit 0
 fi
 
@@ -41,7 +41,7 @@ start()
 		echo
     else
 		# This method makes a process that lingers...
-		#nohup runuser -s /bin/bash $user -c "${exec}" > $logfile 2>&1 &
+		#nohup runuser -s /bin/bash $user -c "${exec}" >> $logfile 2>&1 &
 		#PID=$!
 
 		# Run ourself again (as a sub-program) with the correct user
