@@ -71,6 +71,8 @@ public class Service implements Runnable
     private File jettyJmxJar   =new File("lib/jetty-jmx.jar");
     private File jettyJmxXml   =new File("etc/jetty-jmx.xml");
 
+    private static final File heapDumpPath=new File("/var/lib/hyperjetty");
+
     public
     Service(int controlPort, File libDirectory, File etcDirectory, File logDirectory, String jettyRunnerJar) throws IOException
     {
@@ -356,8 +358,43 @@ public class Service implements Runnable
         count++;
         p.setProperty(RESPAWN_COUNT.toString(), Integer.toString(count));
         int servicePort= Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
+        maybeNoticeAndReportHeapDump(servicePort, p);
         writeProperties(p, configFileForServicePort(servicePort));
         actuallyLaunchServlet(servicePort);
+    }
+
+    private
+    void maybeNoticeAndReportHeapDump(int servicePort, Properties p)
+    {
+        File heapDump=new File(heapDumpPath, "java_pid"+pid(p)+".hprof");
+        if (heapDump.canRead())
+        {
+            String name=p.getProperty(NAME.toString());
+
+            log.println("(!): OOM @ "+name+": "+heapDump);
+
+            File redmine_ticket=new File("/builder/redmine_ticket.sh");
+            if (redmine_ticket.canExecute())
+            {
+                String summary=name+" has run out of memory";
+
+                File configFile = configFileForServicePort(servicePort);
+                try {
+                    Runtime.getRuntime().exec(new String[]{
+                        redmine_ticket.getAbsolutePath(),
+                        "--summary"    , summary,
+                        "--description", configFile.getAbsolutePath(),
+                        "--attachment" , heapDump.getAbsolutePath()
+                    });
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+        else
+        {
+            log.println("dne: "+heapDump);
+        }
     }
 
     private
@@ -567,10 +604,9 @@ public class Service implements Runnable
         //There are seemingly some JVMS that do not give time for the heap dump to be generated (i.e. need to add sleep before kill), but at least ours seems to be okay.
         sb.append(" -XX:OnOutOfMemoryError=\"kill -9 %p\"");
 
-        File saferHeapDumpPath=new File("/var/lib/hyperjetty");
-        if (saferHeapDumpPath.isDirectory())
+        if (heapDumpPath.isDirectory())
         {
-            sb.append(" -XX:HeapDumpPath=").append(saferHeapDumpPath.toString());
+            sb.append(" -XX:HeapDumpPath=").append(heapDumpPath.toString());
         }
 
         if ((arg=p.getProperty(JMX_PORT.toString()))!=null)
