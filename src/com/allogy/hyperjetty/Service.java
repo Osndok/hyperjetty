@@ -1544,6 +1544,35 @@ public class Service implements Runnable
                 configFile.delete();
                 warFile.delete();
 
+                File siblingDirectory;
+
+                if (properties.containsKey(DEPLOY_DIR.toString()))
+                {
+                    siblingDirectory = new File(properties.getProperty(DEPLOY_DIR.toString()));
+                }
+                else
+                {
+                    siblingDirectory = siblingDirectoryForServicePort(servicePort);
+                }
+
+                if (siblingDirectory.isDirectory())
+                {
+                    String absolutePath=siblingDirectory.getAbsolutePath();
+
+                    if (absolutePath.indexOf(' ')>=0 || absolutePath.indexOf("/.")>=0)
+                    {
+                        log.println("cowardly refusing to: rm -rf "+absolutePath);
+                    }
+                    else
+                    {
+                        Runtime.getRuntime().exec(new String[]{
+                            "rm",
+                            "-rf",
+                            absolutePath
+                        });
+                    }
+                }
+
                 success++;
             } catch (Throwable t) {
                 t.printStackTrace();
