@@ -14,6 +14,7 @@ import java.util.zip.ZipEntry;
 import static com.allogy.hyperjetty.ServletProps.DATE_CREATED;
 import static com.allogy.hyperjetty.ServletProps.DATE_RESPAWNED;
 import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
+import static com.allogy.hyperjetty.ServletProps.DEPLOY_DIR;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
 import static com.allogy.hyperjetty.ServletProps.NAME;
@@ -487,9 +488,20 @@ public class Service implements Runnable
         File configFile=configFileForServicePort(servicePort);
         File warFile   =warFileForServicePort(servicePort);
 
-        createMagicSiblingDirectoryForJetty(servicePort);
-
         Properties p=propertiesFromFile(configFile);
+
+        File siblingDirectory;
+
+        if (p.containsKey(DEPLOY_DIR.toString()))
+        {
+            siblingDirectory = new File(p.getProperty(DEPLOY_DIR.toString()));
+        }
+        else
+        {
+            siblingDirectory = siblingDirectoryForServicePort(servicePort);
+        }
+
+        createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
 
         String logFileBase= logFileBaseFromProperties(p);
 
@@ -747,13 +759,11 @@ public class Service implements Runnable
     /**
      * SIDE-EFFECT: jetty's WebInfConfiguration class will notice this directory and use it over a /tmp directory
      *
-     * @param servicePort
      * @throws IOException
      */
     private
-    void createMagicSiblingDirectoryForJetty(int servicePort) throws IOException
+    void createMagicSiblingDirectoryForJetty(File warFile, File siblingDirectory) throws IOException
     {
-        File siblingDirectory = siblingDirectoryForServicePort(servicePort);
         boolean forceJettyToRedeploy;
 
         if (siblingDirectory.isDirectory())
@@ -781,7 +791,6 @@ public class Service implements Runnable
             File extractLock=new File(contextTempDirectory, ".extract_lock");
             extractLock.createNewFile();
             */
-            File warFile=warFileForServicePort(servicePort);
             siblingDirectory.setLastModified(warFile.lastModified()-1000); //some platforms have only 1-second resolution
         }
     }

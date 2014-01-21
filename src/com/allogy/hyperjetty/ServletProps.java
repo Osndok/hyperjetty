@@ -10,6 +10,7 @@ public enum ServletProps
     DATE_CREATED,
     DATE_STARTED,
     DATE_RESPAWNED,
+    DEPLOY_DIR,
     HEAP_SIZE,
     JMX_PORT,
     NAME,
