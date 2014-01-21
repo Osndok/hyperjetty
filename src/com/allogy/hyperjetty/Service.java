@@ -380,9 +380,13 @@ public class Service implements Runnable
                 return;
             }
 
+            String dupeSuppressValue=iso_8601_ish.format(new Date());
+            p.setProperty(dupeSuppressKey, dupeSuppressValue);
+
             File redmine_ticket=new File("/builder/redmine_ticket.sh");
             if (redmine_ticket.canExecute())
             {
+                log.println("reporting OOM via: "+redmine_ticket);
                 String summary=name+" has run out of memory";
 
                 File configFile = configFileForServicePort(servicePort);
@@ -396,6 +400,11 @@ public class Service implements Runnable
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
+            }
+            else
+            {
+                //TODO: issue a syslog event!
+                log.println("no supported method to report OOM");
             }
         }
         else
