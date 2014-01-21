@@ -564,7 +564,8 @@ public class Service implements Runnable
         sb.append(" -XX:+UseG1GC"); // see: http://www.oracle.com/webfolder/technetwork/tutorials/obe/java/G1GettingStarted/index.html
         sb.append(" -XX:+PrintGC"); // print gc pause durations along with what "type" they were
         sb.append(" -XX:+HeapDumpOnOutOfMemoryError");
-        sb.append(" -XX:OnOutOfMemoryError=\"sleep 5; kill -9 %p\""); //give time for the heap dump to be generated.
+        //There are seemingly some JVMS that do not give time for the heap dump to be generated (i.e. need to add sleep before kill), but at least ours seems to be okay.
+        sb.append(" -XX:OnOutOfMemoryError=\"kill -9 %p\"");
 
         File saferHeapDumpPath=new File("/var/lib/hyperjetty");
         if (saferHeapDumpPath.isDirectory())
