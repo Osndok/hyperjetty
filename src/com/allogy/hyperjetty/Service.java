@@ -370,8 +370,15 @@ public class Service implements Runnable
         if (heapDump.canRead())
         {
             String name=p.getProperty(NAME.toString());
+            String version=p.getProperty(VERSION.toString());
+            log.println("(!): OOM  / "+name+" @ "+version+": "+heapDump);
 
-            log.println("(!): OOM @ "+name+": "+heapDump);
+            String dupeSuppressKey="OOM_"+version;
+            if (p.containsKey(dupeSuppressKey))
+            {
+                log.println("suppressing duplicate OOM report");
+                return;
+            }
 
             File redmine_ticket=new File("/builder/redmine_ticket.sh");
             if (redmine_ticket.canExecute())
