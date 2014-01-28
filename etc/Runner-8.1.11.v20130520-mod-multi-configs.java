@@ -372,7 +372,10 @@ public class Runner
                             AFUNIXSocketAddress socketAddress=new AFUNIXSocketAddress(socketFile);
                             serverSocket.bind(socketAddress);
 
-                            _server.addConnector(new UNIXSocketConnector(serverSocket, socketAddress));
+                            SocketConnector connector=new UNIXSocketConnector(serverSocket, socketAddress);
+                            connector.setName("uds:"+socketName);
+                            connector.setStatsOn(true);
+                            _server.addConnector(connector);
                             System.err.println("transverse socket installed");
 
                         } catch (Throwable t) {
