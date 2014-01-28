@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.Override;
+import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -288,8 +289,28 @@ public class Runner
                             StatisticsHandler statsHandler = new StatisticsHandler();
                             prependHandler(statsHandler,handlers);
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
-                            statsContext.addServlet(new ServletHolder(new StatisticsServlet()), "/");
+                            StatisticsServlet statisticsServlet = new StatisticsServlet();
+
+                            if (_statsPropFile==null)
+                            {
+                                kludge_setRestrictToLocalhost_false(statisticsServlet);
+                            }
+
+                            ServletHolder servletHolder=new ServletHolder(statisticsServlet);
+
+                            if (_statsPropFile==null)
+                            {
+                                //dnw: statsContext.setInitParameter("restrictToLocalhost", "false");
+                                //dnw: servletHolder.setInitParameter("restrictToLocalhost", "false");
+                                //dnw: statsContext.setAttribute("restrictToLocalhost", "false");
+                                //dnw: statsContext.setAttribute("org.eclipse.jetty.servlet.StatisticsServlet.restrictToLocalhost", "false");
+                                //dne: servletHolder.setAttribute("restrictToLocalhost", "false");
+                                //dne: servletHolder.setAttribute("org.eclipse.jetty.servlet.StatisticsServlet.restrictToLocalhost", "false");
+                            }
+
+                            statsContext.addServlet(servletHolder, "/");
                             statsContext.setSessionHandler(new SessionHandler());
+
                             if (_statsPropFile != null)
                             {
                                 HashLoginService loginService = new HashLoginService("StatsRealm", _statsPropFile);
@@ -463,9 +484,26 @@ public class Runner
        handlers.setHandlers(children);
     }
 
-    
-    
-    
+    private
+    void kludge_setRestrictToLocalhost_false(Object o)
+    {
+        try {
+            Class<?> c = o.getClass();
+            Field f = c.getDeclaredField("_restrictToLocalhost");
+
+            f.setAccessible(true);
+            f.setBoolean(o, Boolean.FALSE);
+
+            // production code should handle these exceptions more gracefully
+        } catch (NoSuchFieldException x) {
+            x.printStackTrace();
+        } catch (IllegalArgumentException x) {
+            x.printStackTrace();
+        } catch (IllegalAccessException x) {
+            x.printStackTrace();
+        }
+    }
+
     protected int configJDBC(String[] args,int i) throws Exception
     {
         String jdbcClass=null;
