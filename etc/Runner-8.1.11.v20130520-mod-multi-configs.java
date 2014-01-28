@@ -335,7 +335,10 @@ public class Runner
                     //ensure a DefaultHandler is present
                     if (handlers.getChildHandlerByClass(DefaultHandler.class) == null)
                     {
-                        handlers.addHandler(new DefaultHandler());
+                        DefaultHandler defaultHandler = new DefaultHandler();
+                        /* Set "showContexts" to false, so that people who poke at HJ ports cannot discover the running app or stats servlet */
+                        defaultHandler.setShowContexts(false);
+                        handlers.addHandler(defaultHandler);
                     }
                   
                     //ensure a log handler is present
