@@ -562,6 +562,9 @@ public class Service implements Runnable
         String logFile=logFileBase+".log";
         String accessLog=logFileBase+".access";
 
+        log.println("LOG="+logFile);
+        log.println("ACCESS_LOG="+accessLog);
+
         LaunchOptions launchOptions=new LaunchOptions(libDirectory);
 
         {
