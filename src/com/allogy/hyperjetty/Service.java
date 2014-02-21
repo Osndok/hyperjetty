@@ -557,7 +557,7 @@ public class Service implements Runnable
 
         createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
 
-        String logFileBase= logFileBaseFromProperties(p, false);
+        String logFileBase= logFileBaseFromProperties(p, true);
 
         String logFile=logFileBase+".log";
         String accessLog=logFileBase+".access";
