@@ -1,7 +1,7 @@
 
 Name:           hyperjetty
 Version:        gamma
-Release:        21
+Release:        22
 Summary:        Jetty Servlet Hypervisor
 
 Group:          Allogy/Infrastructure
