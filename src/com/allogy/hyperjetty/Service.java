@@ -17,6 +17,7 @@ import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.DEPLOY_DIR;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
+import static com.allogy.hyperjetty.ServletProps.LOG_DATE;
 import static com.allogy.hyperjetty.ServletProps.NAME;
 import static com.allogy.hyperjetty.ServletProps.OPTIONS;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
@@ -556,7 +557,7 @@ public class Service implements Runnable
 
         createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
 
-        String logFileBase= logFileBaseFromProperties(p);
+        String logFileBase= logFileBaseFromProperties(p, false);
 
         String logFile=logFileBase+".log";
         String accessLog=logFileBase+".access";
@@ -948,16 +949,68 @@ public class Service implements Runnable
     private static final File usrBin=new File("/usr/bin");
 
     private
-    String logFileBaseFromProperties(Properties p)
+    String logFileBaseFromProperties(Properties p, boolean forStartup)
     {
-        if (presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
+        if (forStartup)
         {
-            return logNameWithoutPid(p);
+            //Whenever a servlet starts up, it gets a new LOG_DATE...
+            String logDateBase=compact_iso_8601_ish_filename.format(new Date());
+            String logDate=logDateBase;
+            int N=1;
+            String logBase=logBaseWithDateChunk(p, logDate);
+
+            while (accessOrLogFileIsPresentFor(logBase))
+            {
+                log.println("(!) log base taken: "+logBase);
+                N++;
+                logDate=logDateBase+"-"+N;
+                logBase=logBaseWithDateChunk(p, logDate);
+            }
+
+            log.println("using log base: "+logBase);
+            p.setProperty(LOG_DATE.toString(), logBase);
+
+            return logBase;
         }
         else
         {
-            return logNameWithPid(p);
+            String logDate=p.getProperty(LOG_DATE.toString());
+
+            if (logDate==null)
+            {
+                log.println("old/compatibility log-base logic");
+                if (presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
+                {
+                    return logNameWithoutPid(p);
+                }
+                else
+                {
+                    return logNameWithPid(p);
+                }
+            }
+            else
+            {
+                log.println("got LOG_DATE="+logDate+" (resets each servlet launch)");
+                return logBaseWithDateChunk(p, logDate);
+            }
         }
+    }
+
+    private
+    boolean accessOrLogFileIsPresentFor(String logFileBase)
+    {
+        String logFile=logFileBase+".log";
+        String accessLog=logFileBase+".access";
+        return new File(logFile).exists() || new File(accessLog).exists();
+    }
+
+    private
+    String logBaseWithDateChunk(Properties p, String dateChunk)
+    {
+        String appName=p.getProperty(NAME.toString(), "no-name");
+        String basename=niceFileCharactersOnly(appName+"-"+dateChunk);
+
+        return new File(logDirectory, basename).toString();
     }
 
     private
@@ -1202,7 +1255,7 @@ public class Service implements Runnable
 
         properties.store(out, null);
 
-        String logBase = logFileBaseFromProperties(properties);
+        String logBase = logFileBaseFromProperties(properties, false);
         out.println("LOG="+logBase+".log");
         out.println("ACCESS_LOG="+logBase+".access");
         out.println("CONFIG_FILE="+configFileForServicePort(servicePort));
@@ -1514,7 +1567,7 @@ public class Service implements Runnable
 
         for (Properties properties : matchedProperties)
         {
-            String filename = logFileBaseFromProperties(properties) + suffix;
+            String filename = logFileBaseFromProperties(properties, false) + suffix;
             out.println(filename);
             log.println(filename);
         }
@@ -1785,12 +1838,14 @@ public class Service implements Runnable
     }
 
     private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
+    private static final DateFormat compact_iso_8601_ish_filename = new SimpleDateFormat("yyyyMMdd");
 
     static
     {
         TimeZone timeZone=TimeZone.getTimeZone("UTC");
         Calendar calendar=Calendar.getInstance(timeZone);
         iso_8601_ish.setCalendar(calendar);
+        compact_iso_8601_ish_filename.setCalendar(calendar);
     }
 
     private void logDate()
@@ -1825,7 +1880,7 @@ public class Service implements Runnable
         String dry  = filter.getOption("dry", null);
         String returnValue=filter.getOption("return", "port"); //by default, we will print the port number on success
 
-        String portNumberInLogFilename=filter.getOption("port-based-logs", null);
+        //String portNumberInLogFilename=filter.getOption("port-based-logs", null);
 
         if (numFiles!=1)
         {
@@ -1998,10 +2053,12 @@ public class Service implements Runnable
             maybeSet(p, VERSION, version);
         }
 
+        /*
         if (portNumberInLogFilename!=null)
         {
             p.setProperty(PORT_NUMBER_IN_LOG_FILENAME.toString(), portNumberInLogFilename);
         }
+        */
 
         if (tag!=null)
         {
