@@ -336,9 +336,9 @@ public class Service implements Runnable
                         }
                         else
                         {
-                            logDate();
+                            Date noticed=logDate();
                             log.println("respawning dead process (pid="+pid+"): "+file);
-                            doRespawn(p);
+                            doRespawn(p, noticed);
                         }
                     }
                 }
@@ -352,22 +352,25 @@ public class Service implements Runnable
     }
 
     private
-    void doRespawn(Properties p) throws IOException
+    void doRespawn(Properties p, Date noticed) throws IOException
     {
         tagPresentDate(p, DATE_RESPAWNED);
         int count=Integer.parseInt(p.getProperty(RESPAWN_COUNT.toString(), "0"));
         count++;
         p.setProperty(RESPAWN_COUNT.toString(), Integer.toString(count));
         int servicePort= Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
-        maybeNoticeAndReportHeapDump(servicePort, p);
+        int oldPid=pid(p);
+
         writeProperties(p, configFileForServicePort(servicePort));
         actuallyLaunchServlet(servicePort);
+
+        maybeNoticeAndReportHeapDump(servicePort, p, noticed, oldPid);
     }
 
     private
-    void maybeNoticeAndReportHeapDump(int servicePort, Properties p)
+    void maybeNoticeAndReportHeapDump(int servicePort, Properties p, Date noticed, int oldPid)
     {
-        File heapDump=new File(heapDumpPath, "java_pid"+pid(p)+".hprof");
+        File heapDump=new File(heapDumpPath, "java_pid"+oldPid+".hprof");
         if (heapDump.canRead())
         {
             String name=p.getProperty(NAME.toString());
@@ -393,7 +396,7 @@ public class Service implements Runnable
                 File descriptionFile=null;
                 //File configFile = configFileForServicePort(servicePort);
                 try {
-                    descriptionFile=generateOOMReportDescriptionFile(servicePort, p);
+                    descriptionFile=generateOOMReportDescriptionFile(servicePort, p, oldPid);
                     Runtime.getRuntime().exec(new String[]{
                         redmine_ticket.getAbsolutePath(),
                         "--summary"    , summary,
@@ -451,17 +454,20 @@ public class Service implements Runnable
     }
 
     private
-    File generateOOMReportDescriptionFile(int servicePort, Properties p) throws IOException
+    File generateOOMReportDescriptionFile(int servicePort, Properties p, int oldPid) throws IOException
     {
         File retval=File.createTempFile("hj-oom-report-",".txt");
 
         StringBuilder sb=new StringBuilder();
 
-        sb.append("\nA hyperjetty-managed java servlet has encountered an out-of-memory condition (OOM).\n\nHOST = ");
+        sb.append("\nA hyperjetty-managed java servlet has encountered an out-of-memory condition (OOM).\n");
+        sb.append("\nPID  = ");
+        sb.append(oldPid);
+        sb.append("\nHOST = ");
         sb.append(getHostname("unknown-hostname"));
         sb.append("\nTIME = ");
         sb.append(iso_8601_ish.format(new Date()));
-        sb.append(" (approx)\n\n");
+        sb.append(" (that hj noticed)\n\n");
 
         FileOutputStream out=new FileOutputStream(retval);
 
@@ -1910,11 +1916,12 @@ public class Service implements Runnable
         compact_iso_8601_ish_filename.setCalendar(calendar);
     }
 
-    private void logDate()
+    private Date logDate()
     {
         Date now=new Date();
         log.println();
         log.println(iso_8601_ish.format(now));
+        return now;
     }
 
     private
