@@ -396,7 +396,8 @@ public class Service implements Runnable
                 File descriptionFile=null;
                 //File configFile = configFileForServicePort(servicePort);
                 try {
-                    descriptionFile=generateOOMReportDescriptionFile(servicePort, p, oldPid);
+                    descriptionFile=generateOOMReportDescriptionFile(servicePort, p, oldPid, heapDump);
+
                     Runtime.getRuntime().exec(new String[]{
                         redmine_ticket.getAbsolutePath(),
                         "--summary"    , summary,
@@ -406,7 +407,8 @@ public class Service implements Runnable
                 } catch (Throwable t) {
                     t.printStackTrace();
                 } finally {
-                    descriptionFile.delete();
+                    //NB: if we delete the file, the redmine_ticket process won't get it...
+                    //descriptionFile.delete();
                 }
             }
             else
@@ -454,25 +456,37 @@ public class Service implements Runnable
     }
 
     private
-    File generateOOMReportDescriptionFile(int servicePort, Properties p, int oldPid) throws IOException
+    File generateOOMReportDescriptionFile(int servicePort, Properties p, int oldPid, File heapDump) throws IOException
     {
         File retval=File.createTempFile("hj-oom-report-",".txt");
+
+        String hostname=getHostname(null);
 
         StringBuilder sb=new StringBuilder();
 
         sb.append("\nA hyperjetty-managed java servlet has encountered an out-of-memory condition (OOM).\n");
         sb.append("\nPID  = ");
         sb.append(oldPid);
-        sb.append("\nHOST = ");
-        sb.append(getHostname("unknown-hostname"));
+        if (hostname!=null)
+        {
+            sb.append("\nHOST = ");
+            sb.append(hostname);
+        }
         sb.append("\nTIME = ");
         sb.append(iso_8601_ish.format(new Date()));
         sb.append(" (that hj noticed)\n\n");
 
+        if (hostname!=null)
+        {
+            sb.append("The heap dump (which can be hundreds of megabytes), can be obtained by executing a command such as:\n<pre>\n");
+            sb.append("scp ").append(hostname).append(":").append(heapDump.getAbsolutePath()).append(" /tmp/");
+            sb.append("</pre>\n\n");
+        }
+
         FileOutputStream out=new FileOutputStream(retval);
 
         out.write(sb.toString().getBytes());
-        p.store(out, "Properties follow #");
+        p.store(out, "Servlet Properties Follow #");
         out.flush();
         out.close();
 
