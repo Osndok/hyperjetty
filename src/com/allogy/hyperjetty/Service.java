@@ -259,7 +259,7 @@ public class Service implements Runnable
     {
         provisionallyLaunchAllPreviousServlets();
 
-        log.println("Ready to receive connections...");
+        log.println("HyperJetty on "+getHostname("unknown host")+" is ready to receive connections...");
 
         while (alive)
         {
@@ -390,16 +390,20 @@ public class Service implements Runnable
                 log.println("reporting OOM via: "+redmine_ticket);
                 String summary=name+" has run out of memory";
 
-                File configFile = configFileForServicePort(servicePort);
+                File descriptionFile=null;
+                //File configFile = configFileForServicePort(servicePort);
                 try {
+                    descriptionFile=generateOOMReportDescriptionFile(servicePort, p);
                     Runtime.getRuntime().exec(new String[]{
                         redmine_ticket.getAbsolutePath(),
                         "--summary"    , summary,
-                        "--description", configFile.getAbsolutePath(),
-                        "--attachment" , heapDump.getAbsolutePath()
+                        "--description", descriptionFile.getAbsolutePath(),
+                      /*"--attachment" , heapDump.getAbsolutePath()    <-- hundreds of megabytes, too big for redmine attachment */
                     });
                 } catch (Throwable t) {
                     t.printStackTrace();
+                } finally {
+                    descriptionFile.delete();
                 }
             }
             else
@@ -412,6 +416,61 @@ public class Service implements Runnable
         {
             log.println("dne: "+heapDump);
         }
+    }
+
+    public static
+    String getHostname(String _default)
+    {
+        String hostname=null;
+
+        try
+        {
+            java.net.InetAddress addr = java.net.InetAddress.getLocalHost();
+
+            /* Get IP Address? Is this needed?
+            byte[] ipAddr = addr.getAddress();
+            */
+
+            // Get hostname
+            hostname = addr.getHostName();
+
+        }
+        catch (Exception e)
+        {
+            System.out.println("Get hostname by localhost socket failed: "+e);
+        }
+
+        if (hostname==null || hostname.length()==0)
+        {
+            return _default;
+        }
+        else
+        {
+            return hostname;
+        }
+    }
+
+    private
+    File generateOOMReportDescriptionFile(int servicePort, Properties p) throws IOException
+    {
+        File retval=File.createTempFile("hj-oom-report-",".txt");
+
+        StringBuilder sb=new StringBuilder();
+
+        sb.append("\nA hyperjetty-managed java servlet has encountered an out-of-memory condition (OOM).\n\nHOST = ");
+        sb.append(getHostname("unknown-hostname"));
+        sb.append("\nTIME = ");
+        sb.append(iso_8601_ish.format(new Date()));
+        sb.append(" (approx)\n\n");
+
+        FileOutputStream out=new FileOutputStream(retval);
+
+        out.write(sb.toString().getBytes());
+        p.store(out, "Properties follow #");
+        out.flush();
+        out.close();
+
+        return retval;
     }
 
     private
