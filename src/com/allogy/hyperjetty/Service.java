@@ -479,14 +479,14 @@ public class Service implements Runnable
         if (hostname!=null)
         {
             sb.append("The heap dump (which can be hundreds of megabytes), can be obtained by executing a command such as:\n<pre>\n");
-            sb.append("scp ").append(hostname).append(":").append(heapDump.getAbsolutePath()).append(" /tmp/");
+            sb.append("scp ").append(hostname).append(":").append(heapDump.getAbsolutePath()).append(" /tmp/\n");
             sb.append("</pre>\n\n");
         }
 
         FileOutputStream out=new FileOutputStream(retval);
 
         out.write(sb.toString().getBytes());
-        p.store(out, "Servlet Properties Follow #");
+        p.store(out, " -- Servlet Properties Follow -- #");
         out.flush();
         out.close();
 
