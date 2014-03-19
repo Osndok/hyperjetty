@@ -13,7 +13,7 @@ public enum ServletProps
     DEPLOY_DIR,
     HEAP_SIZE,
     JMX_PORT,
-    LOG_DATE,            /* A date-like chunk of characters that is included in the log filenames, may include a "-N" suffix */
+    LOG_BASE,            /* A date-like chunk of characters that is included in the log filenames, may include a "-N" suffix */
     NAME,
     OPTIONS,
     ORIGINAL_WAR,

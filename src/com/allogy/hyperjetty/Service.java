@@ -17,7 +17,7 @@ import static com.allogy.hyperjetty.ServletProps.DATE_STARTED;
 import static com.allogy.hyperjetty.ServletProps.DEPLOY_DIR;
 import static com.allogy.hyperjetty.ServletProps.HEAP_SIZE;
 import static com.allogy.hyperjetty.ServletProps.JMX_PORT;
-import static com.allogy.hyperjetty.ServletProps.LOG_DATE;
+import static com.allogy.hyperjetty.ServletProps.LOG_BASE;
 import static com.allogy.hyperjetty.ServletProps.NAME;
 import static com.allogy.hyperjetty.ServletProps.OPTIONS;
 import static com.allogy.hyperjetty.ServletProps.ORIGINAL_WAR;
@@ -1035,7 +1035,7 @@ public class Service implements Runnable
     {
         if (forStartup)
         {
-            //Whenever a servlet starts up, it gets a new LOG_DATE...
+            //Whenever a servlet starts up, it gets a new LOG_BASE...
             String logDateBase=compact_iso_8601_ish_filename.format(new Date());
             String logDate=logDateBase;
             int N=1;
@@ -1050,15 +1050,21 @@ public class Service implements Runnable
             }
 
             log.println("using log base: "+logBase);
-            p.setProperty(LOG_DATE.toString(), logBase);
+            p.setProperty(LOG_BASE.toString(), logBase);
 
             return logBase;
         }
         else
         {
-            String logDate=p.getProperty(LOG_DATE.toString());
+            String logBase=p.getProperty(LOG_BASE.toString());
 
-            if (logDate==null)
+            //Legacy/migration... yes, LOG_DATE was more than the date component.
+            if (logBase==null)
+            {
+                logBase=p.getProperty("LOG_DATE");
+            }
+
+            if (logBase==null)
             {
                 log.println("old/compatibility log-base logic");
                 if (presentAndFalse(p, PORT_NUMBER_IN_LOG_FILENAME))
@@ -1072,8 +1078,9 @@ public class Service implements Runnable
             }
             else
             {
-                log.println("got LOG_DATE="+logDate+" (resets each servlet launch)");
-                return logBaseWithDateChunk(p, logDate);
+                log.println("got LOG_BASE="+logBase+" (resets each servlet launch)");
+                //return logBaseWithDateChunk(p, logBase);
+                return logBase;
             }
         }
     }
