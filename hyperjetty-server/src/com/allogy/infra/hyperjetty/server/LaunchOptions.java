@@ -27,6 +27,15 @@ public class LaunchOptions
     }
 
     public
+    void addJarIfReadable(File jar)
+    {
+        if (jar.canRead())
+        {
+            jarFiles.add(jar.getAbsolutePath());
+        }
+    }
+
+    public
     void appendClassPath(StringBuilder sb)
     {
         Iterator<String> i=jarFiles.iterator();

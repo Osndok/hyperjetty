@@ -66,15 +66,18 @@ public class Service implements Runnable
      */
     private static final long MAX_RESTART_THRASHING_PERIOD_MS = 60000;
 
+
     private final File libDirectory;
     private final File etcDirectory;
     private final File logDirectory;
     private final ServerSocket serverSocket;
     private final PrintStream log;
 
+    private static final String DISABLED = ".DISABLED";
+
     private File jettyRunnerJar=new File("lib/jetty-runner.jar");
-    private File jettyJmxJar   =new File("lib/jetty-jmx.jar");
-    private File jettyJmxXml   =new File("etc/jetty-jmx.xml");
+    private File jettyJmxJar   =new File("lib/jetty-jmx.jar"+DISABLED);
+    private File jettyJmxXml   =new File("etc/jetty-jmx.xml"+DISABLED);
 
     private static final File heapDumpPath=new File("/var/lib/hyperjetty");
 
@@ -751,6 +754,9 @@ public class Service implements Runnable
 
         launchOptions.appendClassPath(sb);
 
+        sb.append(" com.allogy.infra.hyperjetty.runtime.Runner");
+
+        /*
         if (JETTY_VERSION > 8)
         {
             sb.append(" org.eclipse.jetty.runner.Runner");
@@ -759,6 +765,7 @@ public class Service implements Runnable
         {
             sb.append(" org.mortbay.jetty.runner.Runner");
         }
+        */
 
         //NB: "--without-stats" ---yields--> isBlacklisted("stat")
         boolean hasStatsServlet=(!launchOptions.isBlacklisted("stat"));
@@ -818,7 +825,12 @@ public class Service implements Runnable
         for (ServletProp prop : Config.getPropsAvailableViaEnvironment())
         {
             String key=prop.toString();
-            env.put("HJ_"+key, p.getProperty(key));
+            String value=p.getProperty(key);
+
+            if (value!=null)
+            {
+                env.put("HJ_"+key, value);
+            }
         }
 
         env.remove("LS_COLORS");

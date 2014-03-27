@@ -4,7 +4,12 @@ export CONTROL_PORT=5001
 export LIB_DIRECTORY=/tmp/hyperjetty-$USER
 export ETC_DIRECTORY=$LIB_DIRECTORY
 export LOG_DIRECTORY=$LIB_DIRECTORY
-export JETTY_RUNNER_JAR=lib/jetty-runner.jar
+export SERVER_JAR=hyperjetty-server/target/hyperjetty-server.jar
+export JETTY_RUNNER_JAR=hyperjetty-runtime/target/hyperjetty-runtime.jar
+
+if ! test -r $SERVER_JAR ; then
+	mvn clean && mvn package
+fi
 
 OPTIONS="-Dvisualvm.display.name=Jetty-Hypervisor"
 OPTIONS="$OPTIONS -Xmx33m"
@@ -12,5 +17,5 @@ OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
 
 test -d $LIB_DIRECTORY || mkdir $LIB_DIRECTORY
 
-exec java $OPTIONS -cp out/classes com.allogy.hyperjetty.Service "$@"
+exec java $OPTIONS -cp $SERVER_JAR com.allogy.infra.hyperjetty.server.Service "$@"
 

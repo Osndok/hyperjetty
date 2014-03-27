@@ -36,6 +36,7 @@
                             <includes>
                                 <!-- try running: mvn dependency:list | grep ':compile' -->
                                 <include>org.mortbay.jetty:jetty-runner</include>
+                                <include>com.allogy.thirdparty.junixsocket:junixsocket</include>
                                 <!--
                                 cannot include a "reprocessed" jar....
                                 see: http://bugs.java.com/view_bug.do?bug_id=6207022
@@ -50,6 +51,15 @@
                                 </keep>
                                 <keep>
                                     <pattern>org.eclipse.jetty.server.Request2</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.newsclub.net.unix.AFUNIXSocketAddress</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.eclipse.jetty.jndi.InitialContextFactory</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.eclipse.jetty.util.**</pattern>
                                 </keep>
                                 <!--zap>
                                     <pattern>org.eclipse.jetty.server.Request</pattern>
