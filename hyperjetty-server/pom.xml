@@ -18,15 +18,50 @@
     </description>
 
     <build>
+        <finalName>${project.artifactId}</finalName>
         <sourceDirectory>src</sourceDirectory>
+
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>jarjar-maven-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jarjar</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <!-- try running: mvn dependency:list | grep ':compile' -->
+                                <include>${project.groupId}:hyperjetty-common</include>
+                            </includes>
+                            <rules>
+                                <keep>
+                                    <pattern>com.allogy.infra.**</pattern>
+                                </keep>
+                                <!--zap>
+                                    <pattern>sampleapp*</pattern>
+                                </zap-->
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
     </build>
 
     <dependencies>
+
         <dependency>
-            <groupId>com.allogy.infra.hyperjetty</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>hyperjetty-common</artifactId>
-            <version>${hyperjetty.version}</version>
+            <version>${project.version}</version>
+            <scope>compile</scope>
         </dependency>
+
     </dependencies>
 
 </project>
