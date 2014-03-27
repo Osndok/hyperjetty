@@ -76,6 +76,7 @@ public class Service implements Runnable
     private static final String DISABLED = ".DISABLED";
 
     private File jettyRunnerJar=new File("lib/jetty-runner.jar");
+    private File hjWebappJar   =new File("hyperjetty-webapp/target/hyperjetty-webapp.jar");
     private File jettyJmxJar   =new File("lib/jetty-jmx.jar"+DISABLED);
     private File jettyJmxXml   =new File("etc/jetty-jmx.xml"+DISABLED);
 
@@ -92,6 +93,11 @@ public class Service implements Runnable
         if (jettyRunnerJar!=null)
         {
             this.jettyRunnerJar = new File(jettyRunnerJar);
+        }
+
+        if (!hjWebappJar.canRead())
+        {
+            this.hjWebappJar = new File(libDirectory, hjWebappJar.getName());
         }
 
         assertWritableDirectory(libDirectory);
@@ -748,6 +754,11 @@ public class Service implements Runnable
         {
             hasJUnixSockets=true;
             launchOptions.addJar(jUnixSockets);
+        }
+
+        if (hjWebappJar.exists())
+        {
+            launchOptions.addJar(hjWebappJar);
         }
 
         sb.append(" -cp ");
