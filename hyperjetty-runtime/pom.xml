@@ -118,5 +118,11 @@
 
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>allogy-maven-public</id>
+            <url>https://s3.amazonaws.com/allogy.maven.public/release</url>
+        </repository>
+    </repositories>
 
 </project>
