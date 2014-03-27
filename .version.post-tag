@@ -28,4 +28,4 @@ TOKEN_NAME=7UGen9Hn3YEEhtBs4UDg
 JENKINS_USERNAME=devel-script
 JENKINS_API_TOKEN=89ece6e7196beb964f6b4e061b32f863
 
-exec $WGET -S --auth-no-challenge --http-user=$JENKINS_USERNAME --http-password=$JENKINS_API_TOKEN -O- "$JENKINS_URL/view/Java/job/Hyperjetty/buildWithParameters?token=$TOKEN_NAME&cause=$CAUSE\&GIT_BRANCH=$BRANCH\&GIT_TAG=$TAG\&hyperjetty.version=$VERSION"
+exec $WGET -S --auth-no-challenge --http-user=$JENKINS_USERNAME --http-password=$JENKINS_API_TOKEN -O- "$JENKINS_URL/view/Java/job/Hyperjetty/buildWithParameters?token=${TOKEN_NAME}&cause=${CAUSE}&GIT_BRANCH=${BRANCH}&GIT_TAG=${TAG}&hyperjetty.version=${VERSION}"
