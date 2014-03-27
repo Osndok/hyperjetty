@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.allogy</groupId>
+        <artifactId>allogy-maven-pom</artifactId>
+        <version>1.2</version>
+    </parent>
+
+    <modules>
+        <module>hyperjetty-common</module>
+		<module>hyperjetty-server</module>
+		<module>hyperjetty-control</module>
+		<module>hyperjetty-webapp</module>
+		<module>hyperjetty-runtime</module>
+    </modules>
+
+    <groupId>com.allogy.infra.hyperjetty</groupId>
+    <artifactId>hyperjetty-parent</artifactId>
+    <packaging>pom</packaging>
+    <version>${hyperjetty.version}</version>
+
+    <scm>
+        <connection>scm:git:ssh://devel.allogy.com/projects/hyperjetty.git</connection>
+        <developerConnection>scm:git:ssh://devel.allogy.com/projects/hyperjetty.git</developerConnection>
+    </scm>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>com.netflix.hystrix</groupId>
+			<artifactId>hystrix-core</artifactId>
+			<version>1.3.13</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.netflix.servo</groupId>
+			<artifactId>servo-core</artifactId>
+			<version>0.5.5</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mortbay.jetty</groupId>
+			<artifactId>jetty-runner</artifactId>
+			<version>8.1.14.v20131031</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.allogy.thirdparty.junixsocket</groupId>
+			<artifactId>junixsocket</artifactId>
+			<version>1.3</version>
+			<scope>compile</scope>
+		</dependency>
+
+	</dependencies>
+
+	<properties>
+		<hyperjetty.version>unspecified</hyperjetty.version>
+	</properties>
+
+</project>

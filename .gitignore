@@ -5,3 +5,5 @@
 /etc/Runner.*
 /etc/Request.*
 
+*.iml
+/.idea

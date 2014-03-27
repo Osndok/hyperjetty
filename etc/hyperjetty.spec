@@ -21,12 +21,6 @@ Source5:        junixsocket-1.3-bin.tar.bz2
 Source1:        jetty-runner-8.1.13.v20130916.jar
 Source3:        jetty-jmx-8.1.13.v20130916.jar
 
-# Otherwise version 9.x (or later) supports multiple-configs-via-CLI-args w/o a patch to the "Runner" class
-#ource1:        jetty-runner-9.0.3.v20130506.jar
-#ource3:        jetty-jmx-9.0.3.v20130506.jar
-
-#BuildArch:      noarch
-
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  zip
