@@ -1,3 +1,5 @@
+package com.allogy.infra.hyperjetty.runtime;
+
 // ========================================================================
 //  Copyright 2008 Mort Bay Consulting Pty. Ltd.
 //  ------------------------------------------------------------------------
@@ -12,16 +14,14 @@
 //  limitations under the License.
 //  ========================================================================
 
-package org.mortbay.jetty.runner;
-
 import org.eclipse.jetty.plus.jndi.Transaction;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.*;
-import org.eclipse.jetty.server.handler.*;
 import org.eclipse.jetty.server.bio.SocketConnector;
+import org.eclipse.jetty.server.handler.*;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -34,23 +34,21 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.jetty.xml.XmlConfiguration;
+import org.mortbay.jetty.runner.Monitor;
+import org.newsclub.net.unix.AFUNIXServerSocket;
+import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 import javax.transaction.UserTransaction;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.Override;
 import java.lang.reflect.Field;
-import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-
-import org.newsclub.net.unix.AFUNIXServerSocket;
-import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 public class Runner
 {
@@ -65,8 +63,8 @@ public class Runner
             org.eclipse.jetty.plus.webapp.PlusConfiguration.class.getCanonicalName(),
             org.eclipse.jetty.annotations.AnnotationConfiguration.class.getCanonicalName(),
             org.eclipse.jetty.webapp.JettyWebXmlConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName() 
-            };
+            org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName()
+    };
 
     public static final String __containerIncludeJarPattern = ".*/.*jsp-api-[^/]*\\.jar$|.*/.*jsp-[^/]*\\.jar$|.*/.*taglibs[^/]*\\.jar$|.*/.*jstl[^/]*\\.jar$|.*/.*jsf-impl-[^/]*\\.jar$|.*/.*javax.faces-[^/]*\\.jar$|.*/.*myfaces-impl-[^/]*\\.jar$|.*/.*jetty-runner-[^/]*\\.jar$";
 
@@ -126,9 +124,9 @@ public class Runner
         {
             if ("--version".equals(args[i]))
             {
-                
+
             }
-            
+
             if ("--lib".equals(args[i]))
             {
                 Resource lib = Resource.newResource(args[++i]);
@@ -205,7 +203,7 @@ public class Runner
             }
             else if ("--config".equals(args[i]))
             {
-				if (_configFiles==null) _configFiles=new ArrayList<String>();
+                if (_configFiles==null) _configFiles=new ArrayList<String>();
                 _configFiles.add(args[++i]);
             }
             else if ("--lib".equals(args[i]))
@@ -257,10 +255,10 @@ public class Runner
                     //apply a config file if there is one
                     if (_configFiles != null)
                     {
-					for (String _configFile:_configFiles) {
-                        XmlConfiguration xmlConfiguration = new XmlConfiguration(Resource.newResource(_configFile).getURL());
-                        xmlConfiguration.configure(_server);
-					}
+                        for (String _configFile:_configFiles) {
+                            XmlConfiguration xmlConfiguration = new XmlConfiguration(Resource.newResource(_configFile).getURL());
+                            xmlConfiguration.configure(_server);
+                        }
                     }
 
                     //check that everything got configured, and if not, make the handlers
@@ -270,7 +268,7 @@ public class Runner
                         handlers = new HandlerCollection();
                         _server.setHandler(handlers);
                     }
-                    
+
                     //check if contexts already configured
                     _contexts = (ContextHandlerCollection) handlers.getChildHandlerByClass(ContextHandlerCollection.class);
                     if (_contexts == null)
@@ -278,8 +276,8 @@ public class Runner
                         _contexts = new ContextHandlerCollection();
                         prependHandler(_contexts, handlers);
                     }
-                    
-                  
+
+
 
                     if (_enableStatsGathering)
                     {
@@ -331,7 +329,7 @@ public class Runner
                             }
                         }
                     }
-                   
+
                     //ensure a DefaultHandler is present
                     if (handlers.getChildHandlerByClass(DefaultHandler.class) == null)
                     {
@@ -340,7 +338,7 @@ public class Runner
                         defaultHandler.setShowContexts(false);
                         handlers.addHandler(defaultHandler);
                     }
-                  
+
                     //ensure a log handler is present
                     _logHandler = (RequestLogHandler)handlers.getChildHandlerByClass( RequestLogHandler.class );
                     if ( _logHandler == null )
@@ -348,7 +346,7 @@ public class Runner
                         _logHandler = new RequestLogHandler();
                         handlers.addHandler( _logHandler );
                     }
-                    
+
 
                     //check a connector is configured to listen on
                     Connector[] connectors = _server.getConnectors();
@@ -426,19 +424,19 @@ public class Runner
                     if (contextPathSet)
                         handler.setContextPath(contextPath);
                     handler.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
-                                         __containerIncludeJarPattern);
+                            __containerIncludeJarPattern);
                 }
                 else
                 {
                     // assume it is a WAR file
                     if (contextPathSet && !(contextPath.startsWith("/")))
                         contextPath = "/"+contextPath;
-                    
+
                     LOG.info("Deploying "+ctx.toString()+" @ "+contextPath);
                     WebAppContext webapp = new WebAppContext(_contexts,ctx.toString(),contextPath);
                     webapp.setConfigurationClasses(__plusConfigurationClasses);
                     webapp.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
-                                        __containerIncludeJarPattern);
+                            __containerIncludeJarPattern);
                 }
             }
         }
@@ -453,11 +451,11 @@ public class Runner
             case 1:
                 usage("Must specify --stop-key when --stop-port is specified");
                 break;
-                
+
             case 2:
                 usage("Must specify --stop-port when --stop-key is specified");
                 break;
-                
+
             case 3:
                 ShutdownMonitor monitor = ShutdownMonitor.getInstance();
                 monitor.setPort(stopPort);
@@ -473,18 +471,18 @@ public class Runner
             _logHandler.setRequestLog(requestLog);
         }
     }
-    
-    
+
+
     protected void prependHandler (Handler handler, HandlerCollection handlers)
     {
         if (handler == null || handlers == null)
             return;
-        
-       Handler[] existing = handlers.getChildHandlers();
-       Handler[] children = new Handler[existing.length + 1];
-       children[0] = handler;
-       System.arraycopy(existing, 0, children, 1, existing.length);
-       handlers.setHandlers(children);
+
+        Handler[] existing = handlers.getChildHandlers();
+        Handler[] children = new Handler[existing.length + 1];
+        children[0] = handler;
+        System.arraycopy(existing, 0, children, 1, existing.length);
+        handlers.setHandlers(children);
     }
 
     private
@@ -578,7 +576,7 @@ public class Runner
         {
             _monitor.start();
         }
-        
+
         _server.start();
         _server.join();
     }
@@ -601,7 +599,7 @@ public class Runner
             else
             {
                 if (path.toLowerCase().endsWith(".jar") ||
-                    path.toLowerCase().endsWith(".zip"))
+                        path.toLowerCase().endsWith(".zip"))
                 {
                     URL url = item.getURL();
                     _classpath.add(url);
@@ -627,7 +625,7 @@ public class Runner
 
 
     protected boolean isXADataSource (String classname)
-    throws Exception
+            throws Exception
     {
         Class clazz = Thread.currentThread().getContextClassLoader().loadClass(classname);
         boolean isXA=false;

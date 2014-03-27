@@ -13,7 +13,98 @@
     <packaging>jar</packaging>
 
     <build>
+        <finalName>${project.artifactId}</finalName>
         <sourceDirectory>src</sourceDirectory>
+
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>jarjar-maven-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jarjar</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <!-- try running: mvn dependency:list | grep ':compile' -->
+                                <include>org.mortbay.jetty:jetty-runner</include>
+                                <!--
+                                cannot include a "reprocessed" jar....
+                                see: http://bugs.java.com/view_bug.do?bug_id=6207022
+                                -->
+                                <!--include>${project.groupId}:hyperjetty-webapp</include-->
+                                <include>com.google.code.findbugs:annotations</include>
+                                <include>com.google.code.findbugs:jsr305</include>
+                                <include>com.google.guava:guava</include>
+                                <include>com.netflix.archaius:archaius-core</include>
+                                <include>com.netflix.hystrix:hystrix-core</include>
+                                <include>com.netflix.rxjava:rxjava-core</include>
+                                <include>com.netflix.servo:servo-core</include>
+                                <include>commons-configuration:commons-configuration</include>
+                                <include>commons-lang:commons-lang</include>
+                                <include>commons-logging:commons-logging</include>
+                                <include>${project.groupId}:hyperjetty-common</include>
+                            </includes>
+                            <rules>
+                                <keep>
+                                    <pattern>com.allogy.infra.**</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.mortbay.jetty.runner.Runner</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.eclipse.jetty.server.Request2</pattern>
+                                </keep>
+                                <!--zap>
+                                    <pattern>org.eclipse.jetty.server.Request</pattern>
+                                </zap-->
+                                <rule>
+                                    <pattern>org.eclipse.jetty.server.Request2</pattern>
+                                    <result>org.eclipse.jetty.server.Request</result>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-io</artifactId>
+                        <version>2.0.10</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+
     </build>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>hyperjetty-webapp</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mortbay.jetty</groupId>
+            <artifactId>jetty-runner</artifactId>
+            <version>8.1.14.v20131031</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.allogy.thirdparty.junixsocket</groupId>
+            <artifactId>junixsocket</artifactId>
+            <version>1.3</version>
+            <scope>compile</scope>
+        </dependency>
+
+    </dependencies>
+
 
 </project>
