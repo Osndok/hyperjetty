@@ -59,7 +59,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>hyperjetty-common</artifactId>
             <version>${project.version}</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>
