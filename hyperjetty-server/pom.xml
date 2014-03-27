@@ -12,6 +12,11 @@
     <artifactId>hyperjetty-server</artifactId>
     <packaging>jar</packaging>
 
+    <description>
+        Classes required to organize and launch process-and-jvm-independent webapps via a background service.
+        Does not include a servlet container.
+    </description>
+
     <build>
         <sourceDirectory>src</sourceDirectory>
     </build>

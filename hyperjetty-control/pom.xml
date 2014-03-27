@@ -12,6 +12,11 @@
     <artifactId>hyperjetty-control</artifactId>
     <packaging>jar</packaging>
 
+    <description>
+        Everything that is needed for the "client" mechanism that can query and control the
+        hyperjetty background service, including starting and stopping servlets.
+    </description>
+
     <build>
         <sourceDirectory>src</sourceDirectory>
     </build>

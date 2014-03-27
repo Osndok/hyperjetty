@@ -12,6 +12,11 @@
     <artifactId>hyperjetty-runtime</artifactId>
     <packaging>jar</packaging>
 
+    <description>
+        Classes neccesary for running a webapp, but that should not generally be required by a webapp.
+        When combined with hyperjetty-webapp, this forms a complete runtime environment for a hyperjetty webapp.
+    </description>
+
     <build>
         <finalName>${project.artifactId}</finalName>
         <sourceDirectory>src</sourceDirectory>
@@ -35,18 +40,6 @@
                                 cannot include a "reprocessed" jar....
                                 see: http://bugs.java.com/view_bug.do?bug_id=6207022
                                 -->
-                                <!--include>${project.groupId}:hyperjetty-webapp</include-->
-                                <include>com.google.code.findbugs:annotations</include>
-                                <include>com.google.code.findbugs:jsr305</include>
-                                <include>com.google.guava:guava</include>
-                                <include>com.netflix.archaius:archaius-core</include>
-                                <include>com.netflix.hystrix:hystrix-core</include>
-                                <include>com.netflix.rxjava:rxjava-core</include>
-                                <include>com.netflix.servo:servo-core</include>
-                                <include>commons-configuration:commons-configuration</include>
-                                <include>commons-lang:commons-lang</include>
-                                <include>commons-logging:commons-logging</include>
-                                <include>${project.groupId}:hyperjetty-common</include>
                             </includes>
                             <rules>
                                 <keep>

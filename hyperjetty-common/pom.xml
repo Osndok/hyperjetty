@@ -12,6 +12,11 @@
     <artifactId>hyperjetty-common</artifactId>
     <packaging>jar</packaging>
 
+    <description>
+        Includes classes that are common to more than one hyperjetty-* artifact.
+        Ordinarily, one does not need to depend on this artifact.
+    </description>
+
     <build>
         <sourceDirectory>src</sourceDirectory>
     </build>
