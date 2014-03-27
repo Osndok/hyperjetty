@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Asks Jenkins to create a build.
+#
+
+
+VERSION=$(cat .version)
+
+TAG=v${VERSION}
+
+MAJOR_VERSION=$(cat .version | rev | cut -f2- -d. | rev)
+
+BRANCH=version-$MAJOR_VERSION
+
+CAUSE=$VERSION
+
+#2421 - local tends to be newer, and stock osx version seems to have no preemptive authentication (req. as jenkins returns 404, not 401)
+if [ -x /usr/local/bin/wget ]; then
+	WGET=/usr/local/bin/wget
+else
+	WGET=wget
+fi
+
+# NB: jenkins bug requires an authenticated user... (#2421)
+
+JENKINS_URL=https://jenkins.allogy.com
+TOKEN_NAME=7UGen9Hn3YEEhtBs4UDg
+JENKINS_USERNAME=devel-script
+JENKINS_API_TOKEN=89ece6e7196beb964f6b4e061b32f863
+
+exec $WGET -S --auth-no-challenge --http-user=$JENKINS_USERNAME --http-password=$JENKINS_API_TOKEN -O- "$JENKINS_URL/view/Java/job/Hyperjetty/buildWithParameters?token=$TOKEN_NAME&cause=$CAUSE\&GIT_BRANCH=$BRANCH\&GIT_TAG=$TAG\&hyperjetty.version=$VERSION"
