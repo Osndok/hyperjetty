@@ -5,7 +5,7 @@ package com.allogy.infra.hyperjetty.common;
  * Date: 2013/05/13
  * Time: 5:09 PM
  */
-public enum ServletProps
+public enum ServletProp
 {
     DATE_CREATED,
     DATE_STARTED,

@@ -2,7 +2,7 @@ package com.allogy.infra.hyperjetty.server;
 
 import com.allogy.infra.hyperjetty.common.Config;
 import com.allogy.infra.hyperjetty.common.ProcessUtils;
-import com.allogy.infra.hyperjetty.common.ServletProps;
+import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import javax.management.*;
 import java.io.*;
@@ -15,26 +15,26 @@ import java.util.*;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
-import static com.allogy.infra.hyperjetty.common.ServletProps.DATE_CREATED;
-import static com.allogy.infra.hyperjetty.common.ServletProps.DATE_RESPAWNED;
-import static com.allogy.infra.hyperjetty.common.ServletProps.DATE_STARTED;
-import static com.allogy.infra.hyperjetty.common.ServletProps.DEPLOY_DIR;
-import static com.allogy.infra.hyperjetty.common.ServletProps.HEAP_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.JMX_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProps.LOG_BASE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.NAME;
-import static com.allogy.infra.hyperjetty.common.ServletProps.OPTIONS;
-import static com.allogy.infra.hyperjetty.common.ServletProps.ORIGINAL_WAR;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PATH;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PERM_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PID;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PORT_NUMBER_IN_LOG_FILENAME;
-import static com.allogy.infra.hyperjetty.common.ServletProps.RESPAWN_COUNT;
-import static com.allogy.infra.hyperjetty.common.ServletProps.SERVICE_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProps.STACK_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.TAGS;
-import static com.allogy.infra.hyperjetty.common.ServletProps.VERSION;
-import static com.allogy.infra.hyperjetty.common.ServletProps.WITHOUT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_CREATED;
+import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_RESPAWNED;
+import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_STARTED;
+import static com.allogy.infra.hyperjetty.common.ServletProp.DEPLOY_DIR;
+import static com.allogy.infra.hyperjetty.common.ServletProp.HEAP_SIZE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.JMX_PORT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.LOG_BASE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.NAME;
+import static com.allogy.infra.hyperjetty.common.ServletProp.OPTIONS;
+import static com.allogy.infra.hyperjetty.common.ServletProp.ORIGINAL_WAR;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PATH;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PERM_SIZE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PID;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PORT_NUMBER_IN_LOG_FILENAME;
+import static com.allogy.infra.hyperjetty.common.ServletProp.RESPAWN_COUNT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.SERVICE_PORT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.STACK_SIZE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.TAGS;
+import static com.allogy.infra.hyperjetty.common.ServletProp.VERSION;
+import static com.allogy.infra.hyperjetty.common.ServletProp.WITHOUT;
 
 /**
  * User: robert
@@ -1364,7 +1364,7 @@ public class Service implements Runnable
     }
 
     private
-    void dumpUniqueMultiKey(Filter filter, PrintStream out, ServletProps key) throws IOException
+    void dumpUniqueMultiKey(Filter filter, PrintStream out, ServletProp key) throws IOException
     {
         List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
 
@@ -1409,7 +1409,7 @@ public class Service implements Runnable
     }
 
     private
-    void dumpSpecificKey(Filter filter, PrintStream out, ServletProps key) throws IOException
+    void dumpSpecificKey(Filter filter, PrintStream out, ServletProp key) throws IOException
     {
         List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
 
@@ -1898,7 +1898,7 @@ public class Service implements Runnable
 
     //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
     private
-    boolean presentAndTrue(Properties p, ServletProps key)
+    boolean presentAndTrue(Properties p, ServletProp key)
     {
         String s=p.getProperty(key.toString());
         if (s==null || s.length()==0) return false;
@@ -1908,7 +1908,7 @@ public class Service implements Runnable
 
     //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
     private
-    boolean presentAndFalse(Properties p, ServletProps key)
+    boolean presentAndFalse(Properties p, ServletProp key)
     {
         String s=p.getProperty(key.toString());
         if (s==null || s.length()==0) return false;
@@ -2378,7 +2378,7 @@ public class Service implements Runnable
     }
 
     private
-    Date getDate(Properties p, ServletProps key)
+    Date getDate(Properties p, ServletProp key)
     {
         String value=p.getProperty(key.toString());
         if (value!=null)
@@ -2393,7 +2393,7 @@ public class Service implements Runnable
     }
 
     private
-    void tagPresentDate(Properties p, ServletProps key)
+    void tagPresentDate(Properties p, ServletProp key)
     {
         String value=iso_8601_ish.format(new Date());
         p.setProperty(key.toString(), value);
@@ -2440,7 +2440,7 @@ public class Service implements Runnable
     }
 
     private static
-    void maybeSet(Properties p, ServletProps keyCode, String ifNotPresent)
+    void maybeSet(Properties p, ServletProp keyCode, String ifNotPresent)
     {
         String key=keyCode.toString();
         if (!p.containsKey(key))
@@ -2888,7 +2888,7 @@ public class Service implements Runnable
     }
 
     private
-    boolean anyPropertyHas(List<Properties> matchingProperties, ServletProps key)
+    boolean anyPropertyHas(List<Properties> matchingProperties, ServletProp key)
     {
         String keyString=key.toString();
 

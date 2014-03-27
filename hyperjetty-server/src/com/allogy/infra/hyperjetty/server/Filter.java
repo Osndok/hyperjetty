@@ -1,18 +1,18 @@
 package com.allogy.infra.hyperjetty.server;
 
-import com.allogy.infra.hyperjetty.common.ServletProps;
+import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import java.util.*;
 
-import static com.allogy.infra.hyperjetty.common.ServletProps.HEAP_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.JMX_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProps.NAME;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PATH;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PERM_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProps.PID;
-import static com.allogy.infra.hyperjetty.common.ServletProps.SERVICE_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProps.TAGS;
-import static com.allogy.infra.hyperjetty.common.ServletProps.VERSION;
+import static com.allogy.infra.hyperjetty.common.ServletProp.HEAP_SIZE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.JMX_PORT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.NAME;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PATH;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PERM_SIZE;
+import static com.allogy.infra.hyperjetty.common.ServletProp.PID;
+import static com.allogy.infra.hyperjetty.common.ServletProp.SERVICE_PORT;
+import static com.allogy.infra.hyperjetty.common.ServletProp.TAGS;
+import static com.allogy.infra.hyperjetty.common.ServletProp.VERSION;
 
 /**
  * User: robert
@@ -66,7 +66,7 @@ class Filter
     }
 
     private
-    void setPropertyKeyToMultipleEntry(Properties properties, ServletProps key, Set<String> set)
+    void setPropertyKeyToMultipleEntry(Properties properties, ServletProp key, Set<String> set)
     {
         StringBuilder csv=null;
         for (String s : set) {
@@ -85,7 +85,7 @@ class Filter
     }
 
     private
-    void setPropertyKeyToOnlySetEntry(Properties properties, ServletProps key, Set<String> set)
+    void setPropertyKeyToOnlySetEntry(Properties properties, ServletProp key, Set<String> set)
     {
         Iterator<String> i = set.iterator();
         if (!i.hasNext())
