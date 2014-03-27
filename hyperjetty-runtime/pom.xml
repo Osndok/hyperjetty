@@ -56,10 +56,19 @@
                                     <pattern>org.newsclub.net.unix.AFUNIXSocketAddress</pattern>
                                 </keep>
                                 <keep>
-                                    <pattern>org.eclipse.jetty.jndi.InitialContextFactory</pattern>
+                                    <pattern>org.eclipse.jetty.jndi.**</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.eclipse.jetty.annotations.**</pattern>
                                 </keep>
                                 <keep>
                                     <pattern>org.eclipse.jetty.util.**</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.eclipse.jetty.xml.XmlConfiguration</pattern>
+                                </keep>
+                                <keep>
+                                    <pattern>org.mortbay.util.ajax.WaitingContinuation</pattern>
                                 </keep>
                                 <!--zap>
                                     <pattern>org.eclipse.jetty.server.Request</pattern>
