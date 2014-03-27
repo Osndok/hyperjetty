@@ -810,10 +810,16 @@ public class Service implements Runnable
 
         Map<String, String> env = processBuilder.environment();
         env.put("HJ_PORT"      , Integer.toString(servicePort));
-        env.put("HJ_JMX_PORT"  , p.getProperty(JMX_PORT.toString()));
         env.put("HJ_LOG"       , logFile);
         env.put("HJ_ACCESS_LOG", accessLog);
         env.put("HJ_STATS"     , (hasStatsServlet?"TRUE":"FALSE"));
+        env.put("HJ_CONFIG_FILE", configFile.getAbsolutePath());
+
+        for (ServletProp prop : Config.getPropsAvailableViaEnvironment())
+        {
+            String key=prop.toString();
+            env.put("HJ_"+key, p.getProperty(key));
+        }
 
         env.remove("LS_COLORS");
         env.remove("SSH_CLIENT");
