@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.allogy</groupId>
         <artifactId>allogy-maven-pom</artifactId>
-        <version>1.2</version>
+        <version>5.7</version>
     </parent>
 
     <modules>
