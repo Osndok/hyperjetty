@@ -6,6 +6,10 @@
 
 VERSION=$(cat .version)
 
+mvn clean
+
+exec mvn -Dhyperjetty.version=$VERSION deploy
+
 TAG=v${VERSION}
 
 MAJOR_VERSION=$(cat .version | rev | cut -f2- -d. | rev)
