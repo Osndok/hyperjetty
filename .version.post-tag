@@ -6,9 +6,8 @@
 
 VERSION=$(cat .version)
 
-mvn clean
-
-exec mvn -Dhyperjetty.version=$VERSION deploy
+#mvn clean
+#exec mvn -Dhyperjetty.version=$VERSION deploy
 
 TAG=v${VERSION}
 
