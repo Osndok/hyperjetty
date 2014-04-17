@@ -47,7 +47,11 @@ LOCAL_DIR=$(mktemp -d /tmp/build-srpm.XXXXXXXXX)
 
 SOURCES_LIST=$LOCAL_DIR/sources.txt
 
-cat $SPEC_OUT | ssh "$BUILD_MACHINE" spectool - | tr -s ' :' ':' | cut -f2- -d: > $SOURCES_LIST
+if which spectool ; then
+	cat $SPEC_OUT | spectool - | tr -s ' :' ':' | cut -f2- -d: > $SOURCES_LIST
+else
+	cat $SPEC_OUT | ssh "$BUILD_MACHINE" spectool - | tr -s ' :' ':' | cut -f2- -d: > $SOURCES_LIST
+fi
 
 #
 # SOURCES_LIST is a file that contains a list of all macro-expanded "Source" references
@@ -77,46 +81,13 @@ cat $SPEC_OUT | ssh "$BUILD_MACHINE" spectool - | tr -s ' :' ':' | cut -f2- -d: 
 REMOTE_DIR=$(ssh "$BUILD_MACHINE" mktemp -d /tmp/build-srpm.XXXXXXXXX)
 REMOTE="$BUILD_MACHINE:$REMOTE_DIR"
 
-function xfer_jenkins_url()
-{
-	echo "JENKINS_URL=$SOURCE"
-	ssh "$BUILD_MACHINE" /builder/acquire-jenkins.sh "$REMOTE_DIR" "$SOURCE"
-}
-
-function xfer_source_url()
-{
-	echo SOURCE_URL=$SOURCE
-	ssh "$BUILD_MACHINE" /builder/acquire-url.sh "$REMOTE_DIR" "$SOURCE"
-}
-
-function xfer_machine_ref()
-{
-	echo MACHINE_REF=$SOURCE
-	ssh "$BUILD_MACHINE" /builder/acquire-scp.sh "$REMOTE_DIR" "$SOURCE"
-}
-
-function xfer_build_output()
-{
-	echo BUILD_OUTPUT=$SOURCE
-	if_source_is_safe
-	scp "$SOURCE" "$REMOTE"
-}
-
-function xfer_in_repo_file()
-{
-	echo SOURCE_FILE=$SOURCE
-	if_source_is_safe
-	scp "$SOURCE" "$REMOTE"
-}
-
 function xfer_self_source()
 {
-	echo "SELF_SOURCE=$SOURCE"
 	git archive --format=tar --prefix="$SELF_SOURCE_DIR" HEA | gzip > $LOCAL_DIR/$SELF_SOURCE_REFERENCE
 	scp "$LOCAL_DIR/$SELF_SOURCE_REFERENCE" "$REMOTE"
 }
 
-function if_source_is_safe()
+function if_source_is_safe_path()
 {
 	if [[ "$SOURCE" == *../* ]]; then
 		echo 1>&2 "UNSAFE PATH 1: $SOURCE"
@@ -140,30 +111,23 @@ function if_source_is_safe()
 
 while read SOURCE
 do
-	echo "SOURCE=$SOURCE"
 
 	if [ "$SOURCE" == "$SELF_SOURCE_REFERENCE" ] || [[ "$SOURCE" == */$SELF_SOURCE_REFERENCE ]]; then
+		echo "SELF:  $SOURCE"
 		xfer_self_source
-	elif [[ $SOURCE =~ ^[^/]+://jenkins.allogy.com ]]; then
-		xfer_jenkins_url
-	elif [[ $SOURCE =~ ^[^/]+:// ]]; then
-		xfer_source_url
-	elif [[ $SOURCE =~ ^[-a-z_]+:/ ]]; then
-		xfer_machine_ref
-	elif [[ $SOURCE == target/* ]] || [[ $SOURCE == */target/* ]]; then
-		xfer_build_output
-	elif [ -f "$SOURCE" ]; then
-		xfer_in_repo_file
+	elif [[ $SOURCE == target/* ]] || [[ $SOURCE == */target/* ]] || [ -f "$SOURCE" ]; then
+		echo "XFER:  $SOURCE"
+		if_source_is_safe_path
+		scp "$SOURCE" "$REMOTE"
 	else
-		echo 2>&1 "unrecognized dependency pattern: $SOURCE"
-		exit 1
+		echo 2>&1 "DEFER: $SOURCE"
 	fi
 
 done < $SOURCES_LIST
 
 scp "$SPEC_OUT" "$REMOTE"
 
-if ssh "$BUILD_MACHINE" /builder/register-srpm.sh "$REPO_NAME" "$REMOTE_DIR" ; then
+if ssh "$BUILD_MACHINE" /builder/srpm-chain.sh "$REMOTE_DIR" "$REPO_NAME" ; then
 	rm -rf "$LOCAL_DIR"
 	echo 1>&2 "$0: SUCCESS"
 	exit 0
