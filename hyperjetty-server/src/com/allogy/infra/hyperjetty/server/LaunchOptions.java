@@ -127,7 +127,7 @@ public class LaunchOptions
                     {
                         if (line.toLowerCase().startsWith("java_"))
                         {
-                            addJavaDefine(line.substring(line.indexOf("_")+1));
+                            addJavaDefine(stripUnderscoredPrefix(line));
                         }
                         else
                         {
@@ -178,13 +178,44 @@ public class LaunchOptions
         }
     }
 
+    static
+    String stripUnderscoredPrefix(String line)
+    {
+        return line.substring(line.indexOf("_")+1);
+    }
+
     List<String> javaDefines=new ArrayList<String>();
 
     public
     void addJavaDefine(String s)
     {
-        System.err.println("Got java define: -D"+s);
-        javaDefines.add(s);
+        if (s.indexOf(' ')>=0)
+        {
+            System.err.println("unable to set java defines whose keys (or values) contain spaces: "+s);
+        }
+        else
+        {
+            System.err.println("Got java define: -D"+s);
+            javaDefines.add(s);
+        }
+    }
+
+    public
+    void addJavaDefine(String key, String value)
+    {
+        if (key.indexOf(' ')>=0)
+        {
+            System.err.println("unable to set java defines whose keys (or values) contain spaces: "+key+" --/--> "+value);
+        }
+        else
+        if (value.indexOf(' ')>=0)
+        {
+            System.err.println("unable to set java defines whose values (or keys) contain spaces: "+key+" --/--> "+value);
+        }
+        else
+        {
+            javaDefines.add(key+"="+value);
+        }
     }
 
     public
@@ -217,4 +248,5 @@ public class LaunchOptions
             return new File(optionsDirectory, value);
         }
     }
+
 }

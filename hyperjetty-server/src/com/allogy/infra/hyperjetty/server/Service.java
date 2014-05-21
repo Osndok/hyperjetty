@@ -672,6 +672,22 @@ public class Service implements Runnable
             }
         }
 
+        for (Object o : p.keySet())
+        {
+            final String key=(String)o;
+
+            if (key.toLowerCase().startsWith("java_"))
+            {
+                final String value=p.getProperty(key);
+                final String defineName=LaunchOptions.stripUnderscoredPrefix(key);
+
+
+                log.println("java system define: "+defineName+"="+value);
+
+                launchOptions.addJavaDefine(defineName, value);
+            }
+        }
+
         StringBuilder sb=new StringBuilder();
 
         sb.append("{ exec "); //because an ampersand at the end does not work with all the redirection, and we *can't* have the extra process!!!
