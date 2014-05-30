@@ -1990,7 +1990,8 @@ public class Service implements Runnable
         return (c=='f' || c=='F' || c=='0' || c=='n' || c=='N');
     }
 
-    private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
+    private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS' UTC'");
+    private static final DateFormat iso_8601_compat1 = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
     private static final DateFormat compact_iso_8601_ish_filename = new SimpleDateFormat("yyyyMMdd");
 
     static
@@ -1998,6 +1999,7 @@ public class Service implements Runnable
         TimeZone timeZone=TimeZone.getTimeZone("UTC");
         Calendar calendar=Calendar.getInstance(timeZone);
         iso_8601_ish.setCalendar(calendar);
+        iso_8601_compat1.setCalendar(calendar);
         compact_iso_8601_ish_filename.setCalendar(calendar);
     }
 
@@ -2452,12 +2454,26 @@ public class Service implements Runnable
     Date getDate(Properties p, ServletProp key)
     {
         String value=p.getProperty(key.toString());
+
         if (value!=null)
         {
-            try {
+            try
+            {
                 return iso_8601_ish.parse(value);
-            } catch (Exception e) {
-                e.printStackTrace();
+            }
+            catch (Exception e)
+            {
+                try
+                {
+                    return iso_8601_compat1.parse(value);
+                }
+                catch (Exception e2)
+                {
+                    log.print("ERROR :no matching date parser\n\t");
+                    log.print(e.toString());
+                    log.print("\n\t");
+                    log.print(e2.toString());
+                }
             }
         }
         return null;
