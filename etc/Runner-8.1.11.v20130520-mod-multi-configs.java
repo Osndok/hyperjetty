@@ -248,7 +248,7 @@ public class Runner
                     {
                         // build the server
                         _server = new Server();
-
+                        _server.setSendServerVersion(false);
                     }
 
                     //set up default configuration classes to apply to webapps
