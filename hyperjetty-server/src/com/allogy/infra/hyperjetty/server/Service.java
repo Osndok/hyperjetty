@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
+import static com.allogy.infra.hyperjetty.common.ServletProp.CONTEXT_PATH;
 import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_CREATED;
 import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_RESPAWNED;
 import static com.allogy.infra.hyperjetty.common.ServletProp.DATE_STARTED;
@@ -813,9 +814,16 @@ public class Service implements Runnable
             sb.append(" --port ").append(arg);
         }
 
-        if ((arg=p.getProperty(PATH.toString()))!=null)
+        String path=getContextPath(p);
+
+        if (path!=null)
         {
-            sb.append(" --path ").append(arg);
+            sb.append(" --path ").append(path);
+
+            if (!p.containsKey(CONTEXT_PATH.toString()))
+            {
+                p.setProperty(CONTEXT_PATH.toString(), path);
+            }
         }
 
         if (!substituteAccessLog)
@@ -1021,7 +1029,7 @@ public class Service implements Runnable
         sb.append(p.getProperty(SERVICE_PORT.toString()));
 
         sb.append('-');
-        sb.append(p.getProperty(PATH.toString()));
+        sb.append(getContextPath(p));
 
         int i;
 
@@ -1031,6 +1039,27 @@ public class Service implements Runnable
         }
 
         return sb.toString();
+    }
+
+    private
+    String getContextPath(Properties p)
+    {
+        String path=p.getProperty(CONTEXT_PATH.toString());
+
+        if (path==null)
+        {
+            path=p.getProperty(PATH.toString());
+        }
+
+        if (path==null)
+        {
+            String originalWarFile=p.getProperty(ORIGINAL_WAR.toString());
+            String basename=stripPathSuffixAndVersionNumber(originalWarFile);
+            path=guessPathFromWar(basename);
+            log.println("* guessed context path from warfile: " + originalWarFile + " -> " + path);
+        }
+
+        return path;
     }
 
     private
@@ -1403,7 +1432,7 @@ public class Service implements Runnable
 
         String host=filter.getOption("host", "localhost");
         String protocol=filter.getOption("protocol", "http");
-        String path=properties.getProperty(PATH.toString());
+        String path=getContextPath(properties);
 
         out.println("URL="+protocol+"://"+host+":"+servicePort+path);
     }
@@ -1900,7 +1929,7 @@ public class Service implements Runnable
     {
         String name=properties.getProperty(NAME.toString(), "no-name");
         String port=properties.getProperty(SERVICE_PORT.toString(), "no-port");
-        String path=properties.getProperty(PATH.toString(), "/");
+        String path=getContextPath(properties);
 
         return name+"-"+port+"-"+path;
     }
@@ -2031,11 +2060,13 @@ public class Service implements Runnable
             log.println("* guessed application name from war");
         }
 
+        /*
         if (path==null)
         {
             path=guessPathFromWar(basename);
             log.println("* guessed path from war name");
         }
+        */
 
         log.println("WAR ="+war );
         log.println("NAME="+name);
@@ -2197,11 +2228,6 @@ public class Service implements Runnable
         if (name!=null)
         {
             p.setProperty(NAME.toString(), name);
-        }
-
-        if (path!=null)
-        {
-            p.setProperty(PATH.toString(), path);
         }
 
         if (withoutOptions!=null)
@@ -2893,7 +2919,7 @@ public class Service implements Runnable
                 //append("| /wui         ");
                 //append("| /statements  ");
                 line.append("| ");
-                line.append(String.format("%-12s", p.getProperty(PATH.toString())));
+                line.append(String.format("%-12s", getContextPath(p)));
                 line.append(" ");
             }
 

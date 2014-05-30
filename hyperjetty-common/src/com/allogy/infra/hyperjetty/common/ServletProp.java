@@ -17,7 +17,9 @@ public enum ServletProp
     NAME,
     OPTIONS,
     ORIGINAL_WAR,
+    @Deprecated
     PATH,
+    CONTEXT_PATH,
     PID,
     PERM_SIZE,
     @Deprecated PORT_NUMBER_IN_LOG_FILENAME,
