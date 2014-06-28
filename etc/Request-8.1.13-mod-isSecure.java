@@ -1094,6 +1094,13 @@ public class Request implements HttpServletRequest
     {
         if (_schemeSideStep==null)
         {
+			_schemeSideStep=getHeader("AI-Gateway-SSL");
+			if (_schemeSideStep!=null)
+			{
+				_scheme=(_schemeSideStep.equals("true")?"https":"http";
+			{
+			else
+			{
             _schemeSideStep=getHeader("Host");
             if (_schemeSideStep==null)
             {
@@ -1104,6 +1111,7 @@ public class Request implements HttpServletRequest
             {
                 _scheme="https";
             }
+			}
         }
         return _scheme;
     }
