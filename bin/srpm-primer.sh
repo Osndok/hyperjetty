@@ -83,7 +83,7 @@ REMOTE="$BUILD_MACHINE:$REMOTE_DIR"
 
 function xfer_self_source()
 {
-	git archive --format=tar --prefix="$SELF_SOURCE_DIR" HEA | gzip > $LOCAL_DIR/$SELF_SOURCE_REFERENCE
+	git archive --format=tar --prefix="$SELF_SOURCE_DIR" HEAD | gzip > $LOCAL_DIR/$SELF_SOURCE_REFERENCE
 	scp "$LOCAL_DIR/$SELF_SOURCE_REFERENCE" "$REMOTE"
 }
 
