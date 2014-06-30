@@ -67,7 +67,7 @@ mv -v junixsocket-* junixsocket
 
 # Only until 8.x has multi-configs or 9.x becomes usable
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
-javac -cp %{SOURCE3}:junixsocket/dist/junixsocket-1.*.jar etc/Runner.java
+javac -cp %{SOURCE3}:junixsocket/dist/junixsocket-1.3.jar etc/Runner.java
 
 cat etc/Request-8.1.13-mod-isSecure.java > etc/Request.java
 javac -cp %{SOURCE1} etc/Request.java
