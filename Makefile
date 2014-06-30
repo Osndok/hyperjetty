@@ -5,6 +5,7 @@ VERSION = $(shell cat .version)
 
 JAVA_SRC = $(shell find src -name '*.java')
 
+#NB: Does not work anymore...
 out/hyperjetty.jar: $(JAVA_SRC)
 	rm       -rf out/classes
 	mkdir     -p out/classes

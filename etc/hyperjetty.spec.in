@@ -59,8 +59,6 @@ JNI component that provides UNIX-domain-sockets to Java processes
 # Make sure we use the right java version
 export PATH=%JAVA_BIN:$PATH
 
-make out/hyperjetty.jar
-
 # Only until 8.x has multi-configs or 9.x becomes usable
 cat etc/Runner-8.1.11.v20130520-mod-multi-configs.java > etc/Runner.java
 javac -cp %{SOURCE1}:%{SOURCE4} etc/Runner.java
@@ -80,8 +78,7 @@ mv     */lib-native   $RPM_BUILD_ROOT/opt/newsclub
 rm -rf junixsocket-*
 
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
-#p out/hyperjetty.jar $RPM_BUILD_ROOT/usr/lib/hyperjetty/
-#p etc/jetty-jmx.xml  $RPM_BUILD_ROOT/usr/lib/hyperjetty/
+
 cp %{SOURCE10}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp %{SOURCE11}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
 cp %{SOURCE12}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
