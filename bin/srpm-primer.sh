@@ -17,6 +17,8 @@ BUILD_MACHINE=builder@devtools.allogy.com
 
 KNOWN_HOSTS=~/.ssh/known_hosts
 
+SSH_CONFIG=~/.ssh/config
+
 # ----------------------------------------------
 
 set -eu
@@ -49,7 +51,30 @@ LOCAL_DIR=$(mktemp -d /tmp/build-srpm.XXXXXXXXX)
 
 SOURCES_LIST=$LOCAL_DIR/sources.txt
 
-grep -q devtool $KNOWN_HOSTS || ssh-keyscan devtools.allogy.com >> $KNOWN_HOSTS
+if ! grep -q devtools $KNOWN_HOSTS ; then
+	ssh-keyscan devtools.allogy.com >> $KNOWN_HOSTS
+fi
+
+if ! grep -q devtools $SSH_CONFIG ; then
+	# This is intended to effect the Jenkins Java-7 slave, until such a time that it is parameterized or repaired
+	if grep jenkins_ssh_id_rsa $SSH_CONFIG ; then
+
+cat - >> $SSH_CONFIG <<EOF
+
+# Following entry was added by hyperjetty::etc/srpm-primer.sh script
+# ?: maybe user should be 'jenkins'? (but currently has noshell/nologin)
+Host devtools.allogy.com
+User builder
+IdentityFile ~/.ssh/jenkins_ssh_id_rsa
+
+EOF
+
+	else
+		uname -a
+		echo 2>&1 $(hostname)": don't know how to repair access/permissions to devtools"
+	fi
+fi
+
 
 if which spectool ; then
 	cat $SPEC_OUT | spectool - | tr -s ' :' ':' | cut -f2- -d: > $SOURCES_LIST
