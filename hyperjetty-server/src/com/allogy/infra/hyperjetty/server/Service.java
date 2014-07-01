@@ -5,10 +5,9 @@ import com.allogy.infra.hyperjetty.common.ProcessUtils;
 import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import javax.management.*;
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.net.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -67,6 +66,18 @@ public class Service implements Runnable
      */
     private static final long MAX_RESTART_THRASHING_PERIOD_MS = 60000;
 
+    private static final String JENKINS_USERNAME="hyperjetty";
+    private static final String JENKINS_PASSWORD="QeFNTVz6X2QCNQUdCna7CNg";
+    private static final String JENKINS_API_TOKEN="953bc272e52f7dc3b75491cfd18e5771";
+
+    private static final String JENKINS_AUTHORIZATION_HEADER;
+
+    static
+    {
+        //String authString=JENKINS_USERNAME+":"+JENKINS_PASSWORD;
+        String authString=JENKINS_USERNAME+":"+JENKINS_API_TOKEN;
+        JENKINS_AUTHORIZATION_HEADER="Basic "+nodeps_jdk6_base64Encode(authString);
+    }
 
     private final File libDirectory;
     private final File etcDirectory;
@@ -1957,7 +1968,8 @@ public class Service implements Runnable
     private
     String humanReadable(Properties properties)
     {
-        String name=properties.getProperty(NAME.toString(), "no-name");
+        String basename=new File(properties.getProperty(ORIGINAL_WAR.toString(), "no-name")).getName();
+        String name=properties.getProperty(NAME.toString(), basename);
         String port=properties.getProperty(SERVICE_PORT.toString(), "no-port");
         String path=getContextPath(properties);
 
@@ -2068,142 +2080,188 @@ public class Service implements Runnable
 
         //String portNumberInLogFilename=filter.getOption("port-based-logs", null);
 
-        if (numFiles!=1)
-        {
-            if (numFiles==0)
-            {
-                out.println("service side did not receive the war file, make sure it is reachable client side and that you have specified");
-            }
-            else
-            {
-                out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
-            }
-            log.println("client supplied "+numFiles+" files");
-            return;
-        }
-
         String basename=stripPathSuffixAndVersionNumber(war);
 
         log.println("BASE="+basename);
 
+        boolean nameIsGuessed=false;
+
         if (name==null)
         {
             name=guessNameFromWar(basename);
-            log.println("* guessed application name from war");
+            log.println("* guessed application name from war: "+name);
+            nameIsGuessed=true;
         }
-
-        /*
-        if (path==null)
-        {
-            path=guessPathFromWar(basename);
-            log.println("* guessed path from war name");
-        }
-        */
 
         log.println("WAR ="+war );
         log.println("NAME="+name);
         log.println("PATH="+path);
 
-        String originalFilename=in.readUTF();
-
-        if (!originalFilename.equals(war))
+        final PortReservation initialPortReservation;
         {
-            log.println("WARN: war != filename: "+originalFilename);
-        }
 
-        if (!originalFilename.endsWith(".war"))
-        {
-            String message="cowardly refusing to process war file that does not end in '.war', if you don't know what you are doing please ask for help!";
-            log.println(message);
-            out.println(message);
-            return;
-        }
-
-        PortReservation portReservation;
-
-        if (filter.port!=null)
-        {
-            String servicePort=oneOrNull("servicePort", filter.port);
-
-            if (filter.jmxPort!=null)
+            if (filter.port!=null)
             {
-                log.println("(!) jmx & service port were both specified");
+                String servicePortString=oneOrNull("servicePort", filter.port);
+
+                if (filter.jmxPort!=null)
+                {
+                    log.println("(!) jmx & service port were both specified");
+                    String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
+                    initialPortReservation=PortReservation.exactly(servicePortString, jmxPort);
+                }
+                else
+                {
+                    log.println("(!) service port was specified");
+                    initialPortReservation=PortReservation.givenFixedServicePort(servicePortString, minimumServicePort, minimumJMXPort);
+                }
+            }
+            else
+            if (filter.jmxPort != null)
+            {
+                log.println("(!) jmx port was specified");
                 String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
-                portReservation=PortReservation.exactly(servicePort, jmxPort);
+                initialPortReservation=PortReservation.givenFixedJMXPort(jmxPort, minimumServicePort, minimumJMXPort);
             }
             else
             {
-                log.println("(!) service port was specified");
-                portReservation=PortReservation.givenFixedServicePort(servicePort, minimumServicePort, minimumJMXPort);
+                initialPortReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
             }
         }
-        else
-        if (filter.jmxPort != null)
-        {
-            log.println("(!) jmx port was specified");
-            String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
-            portReservation=PortReservation.givenFixedJMXPort(jmxPort, minimumServicePort, minimumJMXPort);
-        }
-        else
-        {
-            portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
-        }
 
-        int servicePort=portReservation.getServicePort();
-        int firstAttemptAtAServicePort=servicePort;
-
-        if (configFileForServicePort(servicePort).exists())
+        final PortReservation portReservation;
+        final int servicePort;
+        final int jmxPort;
         {
-            log.println("port "+servicePort+" is already allocated (config file exists)");
-            if (filter.port   !=null) { readAll(in); out.println("ERROR: the specified port is already allocated: " + servicePort); return; }
-            if (filter.jmxPort!=null) { readAll(in); out.println("ERROR: the equivalent service port (for specified JMX port) is already allocated: " + portReservation.getJmxPort() + " (jmx) ---> " + servicePort); return; }
-        }
+            final int initialServicePort=initialPortReservation.getServicePort();
+            int tempServicePort=initialServicePort;
 
-        while (configFileForServicePort(servicePort).exists())
-        {
-            log.println("WARN: port already configured: "+servicePort);
-            PortReservation previousReservation=portReservation;
-            portReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
-            previousReservation.release();
-            servicePort=portReservation.getServicePort();
-            if (servicePort==firstAttemptAtAServicePort)
+            if (configFileForServicePort(initialServicePort).exists())
             {
-                throw new IllegalStateException("attempting to acequire a port reservation wrapped back around to "+servicePort+" this instance is probably 'full'...");
+                log.println("port "+initialServicePort+" is already allocated (config file exists)");
+                if (filter.port   !=null) { readAll(in); out.println("ERROR: the specified port is already allocated: " + initialServicePort); return; }
+                if (filter.jmxPort!=null) { readAll(in); out.println("ERROR: the equivalent service port (for specified JMX port) is already allocated: " + initialPortReservation.getJmxPort() + " (jmx) ---> " + initialServicePort); return; }
             }
-        }
 
-        int jmxPort=portReservation.getJmxPort();
+            PortReservation previousReservation=initialPortReservation;
+            PortReservation newReservation=null;
+
+            while (configFileForServicePort(tempServicePort).exists())
+            {
+                log.println("WARN: port already configured: "+tempServicePort);
+
+                newReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+                previousReservation.release();
+
+                tempServicePort=newReservation.getServicePort();
+
+                if (tempServicePort==initialServicePort)
+                {
+                    throw new IllegalStateException("attempting to acquire a port reservation wrapped back around to "+tempServicePort+" this instance is probably 'full'...");
+                }
+
+                previousReservation=newReservation;
+            }
+
+            if (newReservation==null)
+            {
+                portReservation=initialPortReservation;
+            }
+            else
+            {
+                portReservation=newReservation;
+            }
+
+            servicePort = portReservation.getServicePort();
+            jmxPort     = portReservation.getJmxPort();
+        }
 
         log.println("PORT="+servicePort);
         log.println("JMX ="+jmxPort);
 
-        long bytes=in.readLong();
+        final File warFile   =warFileForServicePort(servicePort);
+        final File configFile=configFileForServicePort(servicePort);
 
-        File warFile   =warFileForServicePort(servicePort);
-        File configFile=configFileForServicePort(servicePort);
-
-        log.println("receiving: "+originalFilename+" "+bytes+" bytes => "+warFile);
-
-        FileOutputStream fos=new FileOutputStream(warFile);
-
-        int max=4096;
-        byte[] buffer=new byte[max];
-
-        long bytesToGo=bytes;
-        int read=max;
-
-        while ((read=in.read(buffer, 0, read))>0)
+        final InputStream warSource;
+        final Long bytes;
         {
-            fos.write(buffer, 0, read);
-            bytesToGo-=read;
-            read=(int)Math.min(bytesToGo, max);
+            if (numFiles==0 && looksLikeURL(war))
+            {
+                log.println("reading war file from url (3rd-party to client/server): "+war);
+                warSource=inputStreamFromPossiblyKnownSourceLikeJenkins(war);
+                bytes=null;
+            }
+            else
+            if (numFiles!=1)
+            {
+                if (numFiles==0)
+                {
+                    out.println("service side did not receive the war file, make sure it is reachable client side and that you have specified");
+                }
+                else
+                {
+                    out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
+                }
+
+                log.println("client supplied "+numFiles+" files (expecting 1 [or a url] for launch command)");
+                return;
+            }
+            else
+            {
+                String originalFilename=in.readUTF();
+
+                if (!originalFilename.equals(war))
+                {
+                    log.println("WARN: war != filename: "+originalFilename);
+                }
+
+                if (!originalFilename.endsWith(".war"))
+                {
+                    String message="cowardly refusing to process war file that does not end in '.war', if you don't know what you are doing please ask for help!";
+                    log.println(message);
+                    out.println(message);
+                    return;
+                }
+
+                warSource=in;
+                bytes=in.readLong();
+
+                log.println("receiving via hj-control connection: "+originalFilename+" "+bytes+" bytes => "+warFile);
+            }
         }
 
-        fos.flush();
-        fos.close();
+        //Stream at most 'bytes' (could be null, meaning 'all of them') from warSource to warFile
+        {
+            FileOutputStream fos=new FileOutputStream(warFile);
+            try
+            {
+                int max=4096;
+                byte[] buffer=new byte[max];
 
-        logDate();
-        log.println("finished writing: "+warFile);
+                Long bytesToGo=bytes;
+                int read=max;
+
+                while ((read=warSource.read(buffer, 0, read))>0)
+                {
+                    fos.write(buffer, 0, read);
+
+                    if (bytesToGo!=null)
+                    {
+                        bytesToGo-=read;
+                        read=(int)Math.min(bytesToGo, max);
+                    }
+                }
+
+                fos.flush();
+
+                logDate();
+                log.println("finished writing: "+warFile);
+            }
+            finally
+            {
+                fos.close();
+            }
+        }
 
         Properties p=null;
 
@@ -2257,7 +2315,7 @@ public class Service implements Runnable
         maybeSet(p, JMX_PORT, Integer.toString(jmxPort));
         maybeSet(p, ORIGINAL_WAR, war);
 
-        if (name!=null)
+        if (name!=null && !nameIsGuessed)
         {
             p.setProperty(NAME.toString(), name);
         }
@@ -2308,7 +2366,7 @@ public class Service implements Runnable
         tagPresentDate(p, DATE_CREATED);
         writeProperties(p, configFile);
 
-        portReservation.release();
+        initialPortReservation.release();
 
         String retval=Integer.toString(servicePort);
 
@@ -2330,6 +2388,75 @@ public class Service implements Runnable
         }
         out.println("GOOD");
         out.println(retval);
+    }
+
+    private
+    InputStream inputStreamFromPossiblyKnownSourceLikeJenkins(String url) throws IOException
+    {
+        URLConnection urlConnection=new URL(url).openConnection();
+
+        if (url.contains("jenkins.allogy.com"))
+        {
+            log.println("recognizing jenkins url: "+url);
+            url=translateJenkinsUrlToSideChannel(url);
+            log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
+            urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
+        }
+
+        return urlConnection.getInputStream();
+    }
+
+    /**
+     * Generates a URL to nginx which bypasses jenkins security measures, which seem to unconditionally respond to
+     * artifact requests with a 403 error (might be a plugin conflict?).
+     *
+     * @param url
+     * @return
+     */
+    public static
+    String translateJenkinsUrlToSideChannel(String url)
+    {
+        //url="https://jenkins.allogy.com/job/Capillary%20Content%20Editor/207/artifact/target/capillary-wui.war"
+        //bits:https://jenkins.allogy.com/job                 /Capillary%20Content%20Editor/      /207/artifact/target/capillary-wui.war"
+        //out="https://jenkins.allogy.com/artifact-sidechannel/Capillary%20Content%20Editor/builds/207/archive /target/capillary-wui.war"
+        //(i)=   0    1          2                3                        4                [dne]   5     6        7          8
+        final String[] bits=url.split("/");
+        final StringBuilder sb=new StringBuilder();
+
+        int i=0;
+        for (String bit : bits)
+        {
+            switch(i)
+            {
+                case 3:
+                    sb.append("/artifact-sidechannel");
+                    break;
+
+                case 6:
+                    sb.append("/archive");
+                    break;
+
+                case 5:
+                    sb.append("/builds");
+                    //FALL-THROUGH
+
+                default:
+                    sb.append('/');
+                    sb.append(bit);
+            }
+            i++;
+        }
+
+        //Extra forward slash!
+        sb.deleteCharAt(0);
+        return sb.toString();
+    }
+
+    private
+    boolean looksLikeURL(String fileOrUrl)
+    {
+        final int i=fileOrUrl.indexOf("://");
+        return ( i > 0 ) && ( i < 10 );
     }
 
     private
@@ -3088,4 +3215,11 @@ public class Service implements Runnable
             }
         }
     }
+
+    private static
+    String nodeps_jdk6_base64Encode(String input)
+    {
+        return DatatypeConverter.printBase64Binary(input.getBytes());
+    }
+
 }
