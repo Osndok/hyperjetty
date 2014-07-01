@@ -15,6 +15,8 @@ SPEC_OUT=target/$PROJECT.spec
 
 BUILD_MACHINE=builder@devtools.allogy.com
 
+KNOWN_HOSTS=~/.ssh/known_hosts
+
 # ----------------------------------------------
 
 set -eu
@@ -46,6 +48,8 @@ SPEC_BASE=$(basename $SPEC_OUT)
 LOCAL_DIR=$(mktemp -d /tmp/build-srpm.XXXXXXXXX)
 
 SOURCES_LIST=$LOCAL_DIR/sources.txt
+
+grep -q devtool $KNOWN_HOSTS || ssh-keyscan devtools.allogy.com >> $KNOWN_HOSTS
 
 if which spectool ; then
 	cat $SPEC_OUT | spectool - | tr -s ' :' ':' | cut -f2- -d: > $SOURCES_LIST
