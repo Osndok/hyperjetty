@@ -77,22 +77,24 @@ mv      junixsocket/lib-native $RPM_BUILD_ROOT/opt/newsclub
 rm -rfv junixsocket
 
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
+mkdir -p              $RPM_BUILD_ROOT/usr/share/java
 
-cp %{SOURCE10}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
-cp %{SOURCE11}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
-cp %{SOURCE12}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
-cp %{SOURCE13}        $RPM_BUILD_ROOT/usr/lib/hyperjetty/
+cp %{SOURCE3}         $RPM_BUILD_ROOT/usr/share/java/jetty-runner.jar
+cp %{SOURCE10}        $RPM_BUILD_ROOT/usr/share/java/
+cp %{SOURCE11}        $RPM_BUILD_ROOT/usr/share/java/
+cp %{SOURCE12}        $RPM_BUILD_ROOT/usr/share/java/
+cp %{SOURCE13}        $RPM_BUILD_ROOT/usr/share/java/
 
 cd       $RPM_BUILD_ROOT
 
-mkdir -p ./var/lib/hyperjetty ./etc/init.d ./usr/bin/ ./usr/sbin ./var/log/hyperjetty
+mkdir -p ./var/lib/hyperjetty ./var/log/hyperjetty ./etc/init.d ./usr/bin/ ./usr/sbin
 
 touch     ./usr/bin/hj
 chmod 755 ./usr/bin/hj
 cat  -  > ./usr/bin/hj <<"EOF"
 #!/bin/bash
 export CONTROL_PORT=5001
-exec java -cp /usr/lib/hyperjetty/hyperjetty.jar com.allogy.hyperjetty.Client "$@"
+exec java -cp /usr/share/java/hyperjetty-control.jar com.allogy.infra.hyperjetty.control.Main "$@"
 EOF
 
 touch     ./usr/sbin/hyperjettyd
@@ -101,13 +103,13 @@ cat  -  > ./usr/sbin/hyperjettyd <<"EOF"
 #!/bin/bash
 
 export CONTROL_PORT=5001
-export LIB_DIRECTORY=/usr/lib/hyperjetty
+export LIB_DIRECTORY=/usr/share/java
 export ETC_DIRECTORY=$LIB_DIRECTORY
 export LOG_DIRECTORY=/var/log/hyperjetty
-export JETTY_RUNNER_JAR=/usr/lib/hyperjetty/jetty-runner.jar
+export JETTY_RUNNER_JAR=/usr/share/java/jetty-runner.jar
 
-export JETTY_JMX_XML=/usr/lib/hyperjetty/jetty-jmx.xml
-export JETTY_JMX_JAR=/usr/lib/hyperjetty/jetty-jmx.jar
+#export JETTY_JMX_XML=/usr/share/java/jetty-jmx.xml
+#export JETTY_JMX_JAR=/usr/share/java/jetty-jmx.jar
 
 unset LS_COLORS
 
@@ -115,7 +117,7 @@ OPTIONS="-Dvisualvm.display.name=Jetty-Hypervisor"
 OPTIONS="$OPTIONS -Xmx33m"
 OPTIONS="$OPTIONS -XX:MaxPermSize=15m"
 
-exec java $OPTIONS -cp /usr/lib/hyperjetty/hyperjetty.jar com.allogy.hyperjetty.Service "$@"
+exec java $OPTIONS -cp /usr/share/java/hyperjetty-server.jar com.allogy.infra.hyperjetty.server.Service "$@"
 EOF
 
 cp %{SOURCE2} ./etc/init.d/hyperjetty
@@ -143,6 +145,7 @@ getent passwd hyperjetty >/dev/null || \
 %dir /sock/hj
 /var/lib/hyperjetty
 /usr/lib/hyperjetty
+/usr/share/java/*.jar
 /etc/init.d/hyperjetty
 #config(noreplace) /etc/sysconfig/hyperjetty
 
