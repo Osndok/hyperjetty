@@ -10,12 +10,14 @@ import java.util.*;
  */
 public class LaunchOptions
 {
-    private final File optionsDirectory;
+    private final File optionsDirectory1;
+    private final File optionsDirectory2;
 
     public
-    LaunchOptions(File libDirectory)
+    LaunchOptions(File primaryDirectory, File secondaryDirectory)
     {
-        this.optionsDirectory=new File(libDirectory, "options");
+        this.optionsDirectory1=new File(primaryDirectory, "options");
+        this.optionsDirectory2=new File(secondaryDirectory, "options");
     }
 
     private Set<String> jarFiles=new HashSet<String>();
@@ -83,7 +85,13 @@ public class LaunchOptions
     void enable(String optionName) throws IOException
     {
         PrintStream log=System.err;
-        File optionDescriptionFile=new File(optionsDirectory, optionName+".config");
+        File optionDescriptionFile=new File(optionsDirectory1, optionName+".config");
+
+        if (!optionDescriptionFile.exists())
+        {
+            optionDescriptionFile=new File(optionsDirectory2, optionName+".config");
+            log.println("falling back to: "+optionDescriptionFile+" (should now be in: '"+optionsDirectory1+"')");
+        }
 
         if (blacklistedOptionNames.contains(optionName))
         {
@@ -237,7 +245,8 @@ public class LaunchOptions
         return sb.toString();
     }
 
-    private File possiblyRelativePath(String value)
+    private
+    File possiblyRelativePath(String value)
     {
         if (value.startsWith("/") || value.startsWith("."))
         {
@@ -245,7 +254,17 @@ public class LaunchOptions
         }
         else
         {
-            return new File(optionsDirectory, value);
+            File retval=new File(optionsDirectory1, value);
+
+            if (!retval.exists())
+            {
+                final PrintStream log=System.err;
+
+                retval=new File(optionsDirectory2, value);
+                log.println("falling back to: "+retval+" (should now be in: '"+optionsDirectory1+"')");
+            }
+
+            return retval;
         }
     }
 

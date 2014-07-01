@@ -104,6 +104,7 @@ cat  -  > ./usr/sbin/hyperjettyd <<"EOF"
 
 export CONTROL_PORT=5001
 export LIB_DIRECTORY=/usr/share/java
+export WEBAPP_DIRECTORY=/usr/lib/hyperjetty
 export ETC_DIRECTORY=$LIB_DIRECTORY
 export LOG_DIRECTORY=/var/log/hyperjetty
 export JETTY_RUNNER_JAR=/usr/share/java/jetty-runner.jar

@@ -71,6 +71,7 @@ public class Service implements Runnable
     private final File libDirectory;
     private final File etcDirectory;
     private final File logDirectory;
+    private final File webappDirectory;
     private final ServerSocket serverSocket;
     private final PrintStream log;
 
@@ -84,12 +85,15 @@ public class Service implements Runnable
     private static final File heapDumpPath=new File("/var/lib/hyperjetty");
 
     public
-    Service(int controlPort, File libDirectory, File etcDirectory, File logDirectory, String jettyRunnerJar) throws IOException
+    Service(int controlPort, File webappDirectory, File libDirectory, File etcDirectory, File logDirectory, String jettyRunnerJar) throws IOException
     {
+        log=System.out;
+
         this.serverSocket = new ServerSocket(controlPort);
         this.libDirectory = libDirectory;
         this.etcDirectory = etcDirectory;
         this.logDirectory = logDirectory;
+        this.webappDirectory = webappDirectory;
 
         if (jettyRunnerJar!=null)
         {
@@ -101,19 +105,32 @@ public class Service implements Runnable
             this.hjWebappJar = new File(libDirectory, hjWebappJar.getName());
         }
 
-        assertWritableDirectory(libDirectory);
+        if (!webappDirectory.canWrite())
+        {
+            log.println("WARNING: webapp directory is not writable: "+webappDirectory);
+        }
+
+        assertReadableDirectory(libDirectory);
+        assertReadableDirectory(webappDirectory);
         assertWritableDirectory(etcDirectory);
         assertWritableDirectory(logDirectory);
 
         mustBeReadableFile(this.jettyRunnerJar);
-
-        log=System.out;
 
         serverSocket.setSoTimeout(PERIODIC_SLEEP_MS);
     }
 
     public int minimumServicePort =10000;
     public int minimumJMXPort     =11000;
+
+    private
+    void assertReadableDirectory(File directory)
+    {
+        if (!directory.isDirectory() || !directory.canRead())
+        {
+            throw new IllegalArgumentException("not a readable directory: "+directory);
+        }
+    }
 
     private
     void assertWritableDirectory(File directory)
@@ -135,6 +152,7 @@ public class Service implements Runnable
     {
         String controlPort    = systemPropertyOrEnvironment("CONTROL_PORT"    , null);
         String libDirectory   = systemPropertyOrEnvironment("LIB_DIRECTORY"   , null);
+        String webappDirectory= systemPropertyOrEnvironment("WEBAPP_DIRECTORY", null);
         String etcDirectory   = systemPropertyOrEnvironment("ETC_DIRECTORY"   , null);
         String logDirectory   = systemPropertyOrEnvironment("LOG_DIRECTORY"   , null);
         String jettyRunnerJar = systemPropertyOrEnvironment("JETTY_RUNNER_JAR", null);
@@ -163,6 +181,10 @@ public class Service implements Runnable
                 else if (flag.contains("-log"))
                 {
                     logDirectory=argument;
+                }
+                else if (flag.contains("-app"))
+                {
+                    webappDirectory=argument;
                 }
                 else if (flag.contains("-lib"))
                 {
@@ -193,15 +215,17 @@ public class Service implements Runnable
 
         {
             String NAME="hyperjetty";
-            String usage="\n\nusage: "+NAME+" --lib /var/lib/"+NAME+" --log /var/log/"+NAME+" --port 1234 --jetty-runner-jar /usr/libexec/"+NAME+"/jetty-runner.jar";
+            String usage="\n\nusage: "+NAME+" --apps /var/lib/"+NAME+" --lib /usr/share/java --log /var/log/"+NAME+" --port 1234 --jetty-runner-jar /usr/libexec/"+NAME+"/jetty-runner.jar";
             if (controlPort   ==null) die("controlPort is unspecified"   +usage);
             if (logDirectory  ==null) die("logDirectory is unspecified"  +usage);
             if (libDirectory  ==null) die("libDirectory is unspecified"  +usage);
             if (etcDirectory  ==null) die("etcDirectory is unspecified"  +usage);
+            if (webappDirectory==null) die("webappDirectory is unspecified"+usage);
             // (jettyRunnerJar==null) die("jettyRunnerJar is unspecified"+usage);
         }
 
         System.err.print("Control Port : "); System.err.println(controlPort );
+        System.err.print("Webapp Directory: "); System.err.println(webappDirectory);
         System.err.print("Lib Directory: "); System.err.println(libDirectory);
         System.err.print("Log Directory: "); System.err.println(logDirectory);
         System.err.print("Jetty Runner : "); System.err.println(jettyRunnerJar);
@@ -209,6 +233,7 @@ public class Service implements Runnable
         try {
             Service service=new Service(
                     Integer.parseInt(controlPort),
+                    new File(webappDirectory),
                     new File(libDirectory),
                     new File(etcDirectory),
                     new File(logDirectory),
@@ -594,7 +619,7 @@ public class Service implements Runnable
     private
     File warFileForServicePort(int servicePort)
     {
-        return new File(libDirectory, servicePort+".war");
+        return new File(webappDirectory, servicePort+".war");
     }
 
     /**
@@ -606,7 +631,7 @@ public class Service implements Runnable
     private
     File siblingDirectoryForServicePort(int servicePort)
     {
-        return new File(libDirectory, Integer.toString(servicePort));
+        return new File(webappDirectory, Integer.toString(servicePort));
     }
 
     /**
@@ -644,7 +669,7 @@ public class Service implements Runnable
         log.println("LOG="+logFile);
         log.println("ACCESS_LOG="+accessLog);
 
-        LaunchOptions launchOptions=new LaunchOptions(libDirectory);
+        LaunchOptions launchOptions=new LaunchOptions(libDirectory, webappDirectory);
 
         {
             String without=p.getProperty(WITHOUT.toString());
