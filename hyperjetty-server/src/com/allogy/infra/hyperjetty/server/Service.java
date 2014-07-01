@@ -1480,7 +1480,8 @@ public class Service implements Runnable
         out.println("WAR_FILE="+warFileForServicePort(servicePort));
 
         int pid=pid(properties);
-        out.println("PID="+pid);
+        //NB: PID is already in the printed (as it's in the file)... we only need to output generated or derived data.
+        //out.println("PID="+pid);
 
         if (pid<=1)
         {
