@@ -679,6 +679,8 @@ public class Service implements Runnable
 
         createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
 
+        //NB: by this point, we really need to have NAME set, or else this will fixate 'no-name' within the log base.
+
         String logFileBase= logFileBaseFromProperties(p, true);
 
         String logFile=logFileBase+".log";
@@ -1150,6 +1152,13 @@ public class Service implements Runnable
 
     private static final File usrBin=new File("/usr/bin");
 
+    /**
+     * Pre-condition: must have name assigned, or else log base will have 'no-name' in it.
+     *
+     * @param p
+     * @param forStartup
+     * @return
+     */
     private
     String logFileBaseFromProperties(Properties p, boolean forStartup)
     {
@@ -2287,6 +2296,25 @@ public class Service implements Runnable
             e.printStackTrace();
         }
 
+        if (nameIsGuessed)
+        {
+            if (p.containsKey(NAME.toString()))
+            {
+                //the name provided in the app properties overrides any guessed name
+                name=p.getProperty(NAME.toString());
+                log.println("NAME="+name+" (updated from app.properties)");
+            }
+
+            p.setProperty(NAME.toString(), name);
+        }
+        else
+        {
+            //the name provided on the command line overrides any in the app properties.
+            p.setProperty(NAME.toString(), name);
+        }
+
+        //At this point, we at least know our application name! This will let us derive our log base, etc.
+
         if (version==null)
         {
             try {
@@ -2414,7 +2442,7 @@ public class Service implements Runnable
         {
             log.println("recognizing jenkins url: "+url);
             url=translateJenkinsUrlToSideChannel(url);
-            log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
+            //log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
             urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
         }
 
@@ -2464,7 +2492,10 @@ public class Service implements Runnable
 
         //Extra forward slash!
         sb.deleteCharAt(0);
-        return sb.toString();
+        String retval=sb.toString();
+
+        System.err.println("Translated Jenkins URL to artifact side channel: "+retval);
+        return retval;
     }
 
     private
