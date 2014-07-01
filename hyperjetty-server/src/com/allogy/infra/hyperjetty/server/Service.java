@@ -90,6 +90,7 @@ public class Service implements Runnable
 
     private File jettyRunnerJar=new File("lib/jetty-runner.jar");
     private File hjWebappJar   =new File("hyperjetty-webapp/target/hyperjetty-webapp.jar");
+    private File hjRuntimeJar   =new File("hyperjetty-runtime/target/hyperjetty-runtime.jar");
     private File jettyJmxJar   =new File("lib/jetty-jmx.jar"+DISABLED);
     private File jettyJmxXml   =new File("etc/jetty-jmx.xml"+DISABLED);
 
@@ -114,6 +115,7 @@ public class Service implements Runnable
         if (!hjWebappJar.canRead())
         {
             this.hjWebappJar = new File(libDirectory, hjWebappJar.getName());
+            this.hjRuntimeJar= new File(libDirectory, hjRuntimeJar.getName());
         }
 
         if (!webappDirectory.canWrite())
@@ -817,6 +819,19 @@ public class Service implements Runnable
         if (hjWebappJar.exists())
         {
             launchOptions.addJar(hjWebappJar);
+        }
+        else
+        {
+            log.println("dne: "+hjWebappJar);
+        }
+
+        if (hjRuntimeJar.exists())
+        {
+            launchOptions.addJar(hjRuntimeJar);
+        }
+        else
+        {
+            log.println("dne: "+hjRuntimeJar);
         }
 
         sb.append(" -cp ");
