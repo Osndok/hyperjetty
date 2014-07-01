@@ -2,10 +2,12 @@
 #
 # Builds an SRPM for this project, and stashes it on the specified devtools repo.
 #
-# Last touch: 2014-04-14 / REH
+# usage: bin/srpm-primer.sh [reponame]
+#
+# Last touch: 2014-07-01 / REH
 #
 # (1) build slaves must be able to log into devtools & use 'mock'
-#
+# (2) fixing up srpm/rpm build chain initiation
 #
 
 PROJECT=hyperjetty
@@ -23,7 +25,7 @@ SSH_CONFIG=~/.ssh/config
 
 set -eu
 
-[ -n "${REPO_NAME:-}" ] || REPO_NAME=snapshot
+REPO_NAME=${1:-snapshot}
 
 VERSION=$(cat .version)
 echo "VERSION=$VERSION"
