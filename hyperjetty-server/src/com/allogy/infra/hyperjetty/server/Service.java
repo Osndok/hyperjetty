@@ -110,9 +110,14 @@ public class Service implements Runnable
             log.println("WARNING: webapp directory is not writable: "+webappDirectory);
         }
 
+        if (!etcDirectory.canWrite())
+        {
+            log.println("WARNING: etc directory is not writable: "+etcDirectory);
+        }
+
         assertReadableDirectory(libDirectory);
         assertReadableDirectory(webappDirectory);
-        assertWritableDirectory(etcDirectory);
+        assertReadableDirectory(etcDirectory);
         assertWritableDirectory(logDirectory);
 
         mustBeReadableFile(this.jettyRunnerJar);

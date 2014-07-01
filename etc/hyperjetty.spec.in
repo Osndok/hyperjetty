@@ -105,9 +105,11 @@ cat  -  > ./usr/sbin/hyperjettyd <<"EOF"
 export CONTROL_PORT=5001
 export LIB_DIRECTORY=/usr/share/java
 export WEBAPP_DIRECTORY=/usr/lib/hyperjetty
-export ETC_DIRECTORY=$LIB_DIRECTORY
 export LOG_DIRECTORY=/var/log/hyperjetty
 export JETTY_RUNNER_JAR=/usr/share/java/jetty-runner.jar
+
+# Store the webapp config files alongside the war files...
+export ETC_DIRECTORY=$WEBAPP_DIRECTORY
 
 #export JETTY_JMX_XML=/usr/share/java/jetty-jmx.xml
 #export JETTY_JMX_JAR=/usr/share/java/jetty-jmx.jar
