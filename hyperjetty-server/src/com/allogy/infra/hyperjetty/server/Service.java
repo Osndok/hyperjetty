@@ -807,8 +807,6 @@ public class Service implements Runnable
             launchOptions.addJar(jettyJmxJar);
         }
 
-        launchOptions.addJar(jettyRunnerJar);
-
         boolean hasJUnixSockets=false;
         File jUnixSockets=new File(jettyRunnerJar.getParentFile(), "junixsocket.jar");
 
@@ -835,6 +833,9 @@ public class Service implements Runnable
         {
             log.println("dne: "+hjRuntimeJar);
         }
+
+        //Add the jetty-runner.jar last, so that we can override it's classes as needed
+        launchOptions.addJar(jettyRunnerJar);
 
         sb.append(" -cp ");
 
