@@ -2437,14 +2437,20 @@ public class Service implements Runnable
     private
     InputStream inputStreamFromPossiblyKnownSourceLikeJenkins(String url) throws IOException
     {
-        URLConnection urlConnection=new URL(url).openConnection();
-
-        if (url.contains("jenkins.allogy.com"))
+        final URLConnection urlConnection;
         {
-            log.println("recognizing jenkins url: "+url);
-            url=translateJenkinsUrlToSideChannel(url);
-            //log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
-            urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
+            if (url.contains("jenkins.allogy.com"))
+            {
+                log.println("recognizing jenkins url: "+url);
+                url=translateJenkinsUrlToSideChannel(url);
+                //log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
+                urlConnection=new URL(url).openConnection();
+                urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
+            }
+            else
+            {
+                urlConnection=new URL(url).openConnection();
+            }
         }
 
         return urlConnection.getInputStream();
