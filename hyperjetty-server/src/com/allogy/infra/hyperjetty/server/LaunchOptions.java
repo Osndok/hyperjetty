@@ -20,7 +20,7 @@ public class LaunchOptions
         this.optionsDirectory2=new File(secondaryDirectory, "options");
     }
 
-    private Set<String> jarFiles=new HashSet<String>();
+    private Set<String> jarFiles=new LinkedHashSet<String>();
 
     public
     void addJar(File jar)
