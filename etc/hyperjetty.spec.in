@@ -74,7 +74,6 @@ mkdir -p              $RPM_BUILD_ROOT/sock/hj
 
 mkdir -p              $RPM_BUILD_ROOT/opt/newsclub
 mv      junixsocket/lib-native $RPM_BUILD_ROOT/opt/newsclub
-rm -rfv junixsocket
 
 mkdir -p              $RPM_BUILD_ROOT/usr/lib/hyperjetty
 mkdir -p              $RPM_BUILD_ROOT/usr/share/java
@@ -84,6 +83,10 @@ cp %{SOURCE10}        $RPM_BUILD_ROOT/usr/share/java/
 cp %{SOURCE11}        $RPM_BUILD_ROOT/usr/share/java/
 cp %{SOURCE12}        $RPM_BUILD_ROOT/usr/share/java/
 cp %{SOURCE13}        $RPM_BUILD_ROOT/usr/share/java/
+
+cp -v junixsocket/dist/junixsocket-1*.jar $RPM_BUILD_ROOT/usr/share/java/junixsocket.jar
+
+rm -rfv junixsocket
 
 cd       $RPM_BUILD_ROOT
 

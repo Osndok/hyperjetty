@@ -810,7 +810,7 @@ public class Service implements Runnable
         launchOptions.addJar(jettyRunnerJar);
 
         boolean hasJUnixSockets=false;
-        File jUnixSockets=new File(jettyRunnerJar.getParentFile(), "junixsockets.jar");
+        File jUnixSockets=new File(jettyRunnerJar.getParentFile(), "junixsocket.jar");
 
         if (jUnixSockets.exists())
         {
