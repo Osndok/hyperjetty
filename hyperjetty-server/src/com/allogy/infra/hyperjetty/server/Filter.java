@@ -202,20 +202,26 @@ class Filter
     public
     void jmx(String jmxPort)
     {
+        mustLookLikeANumber(jmxPort);
+
         if (this.jmxPort == null)
         {
             this.jmxPort=new HashSet<String>();
         }
+
         addToOrList(this.jmxPort, jmxPort);
     }
 
     public
     void pid(String pid)
     {
+        mustLookLikeANumber(pid);
+
         if (this.pid==null)
         {
             this.pid=new HashSet<String>();
         }
+
         addToOrList(this.pid, pid);
     }
 
@@ -232,10 +238,13 @@ class Filter
     public
     void port(String port)
     {
+        mustLookLikeANumber(port);
+
         if (this.port==null)
         {
             this.port=new HashSet<String>();
         }
+
         addToOrList(this.port, port);
     }
 
@@ -553,4 +562,9 @@ class Filter
         return (port != null || jmxPort != null);
     }
 
+    private
+    void mustLookLikeANumber(String s)
+    {
+        Integer.parseInt(s);
+    }
 }
