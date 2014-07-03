@@ -1,6 +1,6 @@
 
 Name:           hyperjetty
-Version:        @MAJOR@.@MINOR@.@PATCH@
+Version:        @MAJOR@.@MINOR@.@PATCH@@-SNAPSHOT@
 Release:        @BUILD@
 Summary:        Jetty Servlet Hypervisor
 

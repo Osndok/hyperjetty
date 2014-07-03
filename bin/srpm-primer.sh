@@ -10,7 +10,15 @@
 # (2) fixing up srpm/rpm build chain initiation
 #
 
+set -eu
+
 PROJECT=hyperjetty
+
+# ----------------------------------------------
+
+REPO_NAME=${1:-snapshot}
+
+# ----------------------------------------------
 
 SPEC_IN=etc/$PROJECT.spec.in
 SPEC_OUT=target/$PROJECT.spec
@@ -23,12 +31,8 @@ SSH_CONFIG=~/.ssh/config
 
 # ----------------------------------------------
 
-set -eu
-
-REPO_NAME=${1:-snapshot}
-
 VERSION=$(cat .version)
-echo "VERSION=$VERSION"
+echo "VERSION=$VERSION (.version)"
 
 # http://semver.org/
 MAJOR=$(echo $VERSION | cut -f1 -d.)
@@ -45,7 +49,15 @@ SELF_SOURCE_DIR="$PROJECT-$VERSION/"
 SELF_SOURCE_REFERENCE="$PROJECT-$VERSION.tar.gz"
 echo "SSR=$SELF_SOURCE_REFERENCE"
 
-sed -e "s/@MAJOR@/$MAJOR/g" -e "s/@MINOR@/$MINOR/g" -e "s/@PATCH@/$PATCH/g" -e "s/@BUILD@/$BUILD/g" "$SPEC_IN" > "$SPEC_OUT"
+REPLACEMENTS="-e s/@MAJOR@/$MAJOR/g -e s/@MINOR@/$MINOR/g -e s/@PATCH@/$PATCH/g -e s/@BUILD@/$BUILD/g"
+
+if [ "$REPO_NAME" == "snapshot" ]; then
+	REPLACEMENTS="$REPLACEMENTS -e s/@MUTEX@/snapshot/g -e s/@-SNAPSHOT@/-snapshot/g -e s/@_SNAPSHOT@/_snapshot/g -e s/@.SNAPSHOT@/.snapshot/g"
+else
+	REPLACEMENTS="$REPLACEMENTS -e s/@MUTEX@/v${MAJOR}/g -e s/@-SNAPSHOT@//g -e s/@_SNAPSHOT@//g -e s/@.SNAPSHOT@//g"
+fi
+
+sed $REPLACEMENTS "$SPEC_IN" > "$SPEC_OUT"
 
 SPEC_BASE=$(basename $SPEC_OUT)
 
