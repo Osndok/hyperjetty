@@ -46,18 +46,20 @@ echo "PATCH=$PATCH"
 echo "BUILD=$BUILD"
 
 SELF_SOURCE_DIR="$PROJECT-$VERSION/"
-SELF_SOURCE_REFERENCE="$PROJECT-$VERSION.tar.gz"
-echo "SSR=$SELF_SOURCE_REFERENCE"
 
 REPLACEMENTS="-e s/@MAJOR@/$MAJOR/g -e s/@MINOR@/$MINOR/g -e s/@PATCH@/$PATCH/g -e s/@BUILD@/$BUILD/g"
 
 if [ "$REPO_NAME" == "snapshot" ]; then
 	REPLACEMENTS="$REPLACEMENTS -e s/@MUTEX@/snapshot/g -e s/@-SNAPSHOT@/-snapshot/g -e s/@_SNAPSHOT@/_snapshot/g -e s/@.SNAPSHOT@/.snapshot/g"
+	SELF_SOURCE_REFERENCE="$PROJECT-$VERSION.snapshot.tar.gz"
 else
 	REPLACEMENTS="$REPLACEMENTS -e s/@MUTEX@/v${MAJOR}/g -e s/@-SNAPSHOT@//g -e s/@_SNAPSHOT@//g -e s/@.SNAPSHOT@//g"
+	SELF_SOURCE_REFERENCE="$PROJECT-$VERSION.tar.gz"
 fi
 
 sed $REPLACEMENTS "$SPEC_IN" > "$SPEC_OUT"
+
+echo "SSR=$SELF_SOURCE_REFERENCE"
 
 SPEC_BASE=$(basename $SPEC_OUT)
 
