@@ -85,6 +85,7 @@ public class Runner
     protected String _statsPropFile;
     protected boolean _clusteredSessions=true;
 
+    protected ErrorHandler errorHandler;
 
     public Runner()
     {
@@ -277,8 +278,6 @@ public class Runner
                         prependHandler(_contexts, handlers);
                     }
 
-
-
                     if (_enableStatsGathering)
                     {
                         //if no stats handler already configured
@@ -288,6 +287,11 @@ public class Runner
                             prependHandler(statsHandler,handlers);
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
+
+                            if (errorHandler!=null)
+                            {
+                                System.err.println("errorHandler could even cover stats errors");
+                            }
 
                             if (_statsPropFile==null)
                             {
@@ -430,13 +434,22 @@ public class Runner
                 {
                     // assume it is a WAR file
                     if (contextPathSet && !(contextPath.startsWith("/")))
+                    {
                         contextPath = "/"+contextPath;
+                    }
 
                     LOG.info("Deploying "+ctx.toString()+" @ "+contextPath);
+
                     WebAppContext webapp = new WebAppContext(_contexts,ctx.toString(),contextPath);
                     webapp.setConfigurationClasses(__plusConfigurationClasses);
-                    webapp.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
-                            __containerIncludeJarPattern);
+                    webapp.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern", __containerIncludeJarPattern);
+
+                    errorHandler=maybeLoadWebappContainerErrorHandler(webapp);
+
+                    if (errorHandler!=null)
+                    {
+                        webapp.setErrorHandler(errorHandler);
+                    }
                 }
             }
         }
@@ -469,6 +482,47 @@ public class Runner
             NCSARequestLog requestLog = new NCSARequestLog(_logFile);
             requestLog.setExtended(false);
             _logHandler.setRequestLog(requestLog);
+        }
+    }
+
+    private static final String HOOK_CLASS_NAME="com.allogy.hooks.hyperjetty.HJErrorHandler";
+
+    private
+    ErrorHandler maybeLoadWebappContainerErrorHandler(WebAppContext webapp)
+    {
+        try
+        {
+            final ClassLoader classLoader = webapp.getClassLoader();
+
+            if (classLoader==null)
+            {
+                System.err.println("maybeLoadWebappContainerErrorHandler: no class loader");
+                return null;
+            }
+
+            final Class aClass=classLoader.loadClass(HOOK_CLASS_NAME);
+
+            if (aClass==null)
+            {
+                System.err.println("maybeLoadWebappContainerErrorHandler: no such class: "+HOOK_CLASS_NAME);
+                return null;
+            }
+
+            if (ErrorHandler.class.isAssignableFrom(aClass))
+            {
+                return (ErrorHandler)aClass.newInstance();
+            }
+            else
+            {
+                System.err.println("maybeLoadWebappContainerErrorHandler: does not extend ErrorHandler: "+aClass);
+                return null;
+            }
+        }
+        catch (Exception e)
+        {
+            System.err.println("maybeLoadWebappContainerErrorHandler: threw an exception");
+            e.printStackTrace();
+            return null;
         }
     }
 
