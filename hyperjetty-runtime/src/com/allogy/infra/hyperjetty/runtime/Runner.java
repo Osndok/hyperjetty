@@ -42,7 +42,10 @@ import javax.transaction.UserTransaction;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -444,6 +447,13 @@ public class Runner
                     webapp.setConfigurationClasses(__plusConfigurationClasses);
                     webapp.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern", __containerIncludeJarPattern);
 
+                    /* By default... remove the standard classloader partition wrt accessing Jetty classes */
+                    if (!Boolean.getBoolean("HJ_DO_NOT_SQUELCH_SERVER_CLASSES"))
+                    {
+                        webapp.setServerClasses(new String[0]);
+                        maybeInjectServerClassIntoWebapp(webapp, _server);
+                    }
+
                     errorHandler=maybeLoadWebappContainerErrorHandler(webapp);
 
                     if (errorHandler!=null)
@@ -485,9 +495,84 @@ public class Runner
         }
     }
 
-    private static final String HOOK_CLASS_NAME="com.allogy.hooks.hyperjetty.HJErrorHandler";
+    private static final String SERVER_RECEIVER_HOOK_CLASS_NAME = "com.allogy.hooks.hyperjetty.HJServerReceiver";
 
-    private
+    private static
+    void maybeInjectServerClassIntoWebapp(WebAppContext webapp, Server server)
+    {
+        try
+        {
+            final ClassLoader classLoader = webapp.getClassLoader();
+
+            if (classLoader==null)
+            {
+                System.err.println("maybeInjectServerClassIntoWebapp: no class loader");
+                return;
+            }
+
+            final Class aClass=classLoader.loadClass(SERVER_RECEIVER_HOOK_CLASS_NAME);
+
+            if (aClass==null)
+            {
+                System.err.println("maybeInjectServerClassIntoWebapp: no such class: "+ SERVER_RECEIVER_HOOK_CLASS_NAME);
+                return;
+            }
+
+            final Object o=constructAndSetServer(aClass, server);
+
+            if (o instanceof Thread)
+            {
+                System.err.println("maybeInjectServerClassIntoWebapp: starting "+SERVER_RECEIVER_HOOK_CLASS_NAME);
+                ((Thread)o).start();
+            }
+            else
+            if (o instanceof Runnable)
+            {
+                System.err.println("maybeInjectServerClassIntoWebapp: running "+SERVER_RECEIVER_HOOK_CLASS_NAME);
+                ((Runnable)o).run();
+            }
+            else
+            {
+                System.err.println("maybeInjectServerClassIntoWebapp: don't know how to activate "+SERVER_RECEIVER_HOOK_CLASS_NAME);
+            }
+        }
+        catch (Exception e)
+        {
+            System.err.println("maybeInjectServerClassIntoWebapp: threw an exception");
+            e.printStackTrace();
+        }
+    }
+
+    private static
+    Object constructAndSetServer(Class aClass, Server server) throws IllegalAccessException, InvocationTargetException,
+            InstantiationException, NoSuchMethodException
+    {
+        Object o=null;
+
+        for (Constructor constructor : aClass.getConstructors())
+        {
+            final Class[] parameterTypes = constructor.getParameterTypes();
+
+            if (parameterTypes.length==1 && parameterTypes[0]==Server.class)
+            {
+                //Preferred... and probably faster?
+                return constructor.newInstance(server);
+            }
+        }
+
+        //Maybe they want it as a bean-type...
+        o=aClass.newInstance();
+
+        final Method method = aClass.getMethod("setServer", Server.class);
+
+        method.invoke(o, server);
+
+        return o;
+    }
+
+    private static final String ERROR_HANDLER_HOOK_CLASS_NAME = "com.allogy.hooks.hyperjetty.HJErrorHandler";
+
+    private static
     ErrorHandler maybeLoadWebappContainerErrorHandler(WebAppContext webapp)
     {
         try
@@ -500,11 +585,11 @@ public class Runner
                 return null;
             }
 
-            final Class aClass=classLoader.loadClass(HOOK_CLASS_NAME);
+            final Class aClass=classLoader.loadClass(ERROR_HANDLER_HOOK_CLASS_NAME);
 
             if (aClass==null)
             {
-                System.err.println("maybeLoadWebappContainerErrorHandler: no such class: "+HOOK_CLASS_NAME);
+                System.err.println("maybeLoadWebappContainerErrorHandler: no such class: "+ ERROR_HANDLER_HOOK_CLASS_NAME);
                 return null;
             }
 
