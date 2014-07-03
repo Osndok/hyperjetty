@@ -291,11 +291,6 @@ public class Runner
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
 
-                            if (errorHandler!=null)
-                            {
-                                System.err.println("errorHandler could even cover stats errors");
-                            }
-
                             if (_statsPropFile==null)
                             {
                                 kludge_setRestrictToLocalhost_false(statisticsServlet);
@@ -453,13 +448,6 @@ public class Runner
                         webapp.setServerClasses(new String[0]);
                         maybeInjectServerClassIntoWebapp(webapp, _server);
                     }
-
-                    errorHandler=maybeLoadWebappContainerErrorHandler(webapp);
-
-                    if (errorHandler!=null)
-                    {
-                        webapp.setErrorHandler(errorHandler);
-                    }
                 }
             }
         }
@@ -498,7 +486,7 @@ public class Runner
     private static final String SERVER_RECEIVER_HOOK_CLASS_NAME = "com.allogy.hooks.hyperjetty.HJServerReceiver";
 
     private static
-    void maybeInjectServerClassIntoWebapp(WebAppContext webapp, Server server)
+    void maybeInjectServerClassIntoWebapp(ContextHandler webapp, Server server)
     {
         try
         {
@@ -573,7 +561,7 @@ public class Runner
     private static final String ERROR_HANDLER_HOOK_CLASS_NAME = "com.allogy.hooks.hyperjetty.HJErrorHandler";
 
     private static
-    ErrorHandler maybeLoadWebappContainerErrorHandler(WebAppContext webapp)
+    ErrorHandler maybeLoadWebappContainerErrorHandler(ContextHandler webapp)
     {
         try
         {
@@ -717,6 +705,42 @@ public class Runner
         }
 
         _server.start();
+        LOG.info("jetty has started, locating error handler");
+
+        for (Handler handler : _contexts.getHandlers())
+        {
+            if (handler instanceof ContextHandler)
+            {
+                final ContextHandler contextHandler=(ContextHandler)handler;
+
+                errorHandler=maybeLoadWebappContainerErrorHandler(contextHandler);
+
+                if (errorHandler!=null)
+                {
+                    LOG.info("located error handler in "+handler);
+                    break;
+                }
+            }
+        }
+
+        if (errorHandler==null)
+        {
+            LOG.info("did not find an error handler");
+        }
+        else
+        {
+            LOG.info("installing error handler into all contexts");
+
+            for (Handler handler : _contexts.getHandlers())
+            {
+                if (handler instanceof ContextHandler)
+                {
+                    final ContextHandler contextHandler=(ContextHandler)handler;
+                    contextHandler.setErrorHandler(errorHandler);
+                }
+            }
+        }
+
         _server.join();
     }
 

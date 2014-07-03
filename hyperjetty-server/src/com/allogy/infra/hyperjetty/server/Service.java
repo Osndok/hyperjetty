@@ -2411,7 +2411,7 @@ public class Service implements Runnable
         tagPresentDate(p, DATE_CREATED);
         writeProperties(p, configFile);
 
-        initialPortReservation.release();
+        portReservation.release();
 
         String retval=Integer.toString(servicePort);
 
