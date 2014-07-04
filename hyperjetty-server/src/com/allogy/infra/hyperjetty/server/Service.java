@@ -45,7 +45,6 @@ public class Service implements Runnable
 {
 
     private static final String SERVLET_STOPPED_PID = "-1";
-    private static final long RESTART_DELAY_MS = 20;
     private static final boolean USE_BIG_TAPESTRY_DEFAULTS = false;
 
     private static final int JETTY_VERSION = 8;
@@ -1345,6 +1344,10 @@ public class Service implements Runnable
         {
             sendKillQuitSignalTo(getFilter(args), out);
         }
+        else if (command.equals("restart"))
+        {
+            doStopCommand(getFilter(args), out, true);
+        }
         else if (command.equals("launch"))
         {
             doLaunchCommand(args, in, out, numFiles);
@@ -1399,7 +1402,11 @@ public class Service implements Runnable
         }
         else if (command.equals("stop"))
         {
-            doStopCommand(getFilter(args), out);
+            doStopCommand(getFilter(args), out, false);
+        }
+        else if (command.equals("kill"))
+        {
+            doKillCommand(getFilter(args), out);
         }
         else if (command.startsWith("stat")) //"status", "stats", "statistics", or even "stat" (like the unix function)
         {
@@ -1659,7 +1666,7 @@ public class Service implements Runnable
                 //configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
                 writeProperties(newProperties, configFileForServicePort(newServicePort));
                 configFileForServicePort(oldServicePort).delete();
-                Thread.sleep(RESTART_DELAY_MS);
+                //Thread.sleep(RESTART_DELAY_MS); was this sleep needed for something???
                 actuallyLaunchServlet(newServicePort);
             }
             else
@@ -1677,8 +1684,8 @@ public class Service implements Runnable
             log.println("servlet restart required");
             int servicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
             doStopCommand(oldProperties);
+            waitForProcessToTerminate(oldProperties);
             writeProperties(newProperties, configFileForServicePort(servicePort));
-            Thread.sleep(RESTART_DELAY_MS);
             actuallyLaunchServlet(servicePort);
         }
         else
@@ -1847,7 +1854,7 @@ public class Service implements Runnable
         }
         else
         {
-            final String message="\n"+numErrors+" error(s) found... the end.";
+            final String message="\n"+numErrors+" error(s) found...";
             out.println(message);
             log.println(message);
         }
@@ -1918,11 +1925,85 @@ public class Service implements Runnable
     }
 
     private
-    void doStopCommand(Filter filter, PrintStream out) throws IOException
+    void doStopCommand(Filter filter, PrintStream out, boolean andThenRestart) throws IOException
     {
         if (filter.implicitlyMatchesEverything())
         {
-            out.println("stop command requires some restrictions or an explicit '--all' flag");
+            out.println("stop (or restart) command requires some restrictions or an explicit '--all' flag");
+            return;
+        }
+
+        final List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
+
+        int total=0;
+        int success=0;
+
+        List<String> failures=new ArrayList<String>();
+
+        for (Properties properties : matchingProperties)
+        {
+            total++;
+            String name=humanReadable(properties);
+
+            try {
+                log.println("stopping: "+name);
+                doStopCommand(properties);
+                success++;
+            } catch (Throwable t) {
+                t.printStackTrace();
+                String message="failed to stop '"+name+"': "+t.toString();
+                failures.add(message);
+                log.println(message);
+            }
+        }
+
+        for (Properties properties : matchingProperties)
+        {
+            try
+            {
+                waitForProcessToTerminate(properties);
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+                String message=humanReadable(properties)+" might not have stopped: "+t.toString();
+                failures.add(message);
+                total++;
+            }
+        }
+
+        if (andThenRestart)
+        {
+            for (Properties properties : matchingProperties)
+            {
+                try
+                {
+                    final int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+                    actuallyLaunchServlet(servicePort);
+                }
+                catch (Throwable t)
+                {
+                    t.printStackTrace();
+                    String message=humanReadable(properties)+" might not have restarted: "+t.toString();
+                    failures.add(message);
+                    total++;
+                }
+            }
+
+            successOrFailureReport("restarted", total, success, failures, out);
+        }
+        else
+        {
+            successOrFailureReport("stopped", total, success, failures, out);
+        }
+    }
+
+    private
+    void doKillCommand(Filter filter, PrintStream out) throws IOException
+    {
+        if (filter.implicitlyMatchesEverything())
+        {
+            out.println("kill command requires some restrictions or an explicit '--all' flag");
             return;
         }
 
@@ -1938,18 +2019,18 @@ public class Service implements Runnable
             String name=humanReadable(properties);
 
             try {
-                log.println("stopping: "+name);
-                int pid=doStopCommand(properties);
+                log.println("killing: "+name);
+                int pid=doKillCommand(properties);
                 success++;
             } catch (Throwable t) {
                 t.printStackTrace();
-                String message="failed to stop '"+name+"': "+t.toString();
+                String message="failed to kill '"+name+"': "+t.toString();
                 failures.add(message);
                 log.println(message);
             }
         }
 
-        successOrFailureReport("stopped", total, success, failures, out);
+        successOrFailureReport("killed", total, success, failures, out);
     }
 
     private
@@ -1990,7 +2071,9 @@ public class Service implements Runnable
                 }
 
                 log.println("stopping: "+name);
-                int pid=doStopCommand(properties);
+
+                doStopCommand(properties);
+                waitForProcessToTerminate(properties);
 
                 configFile.delete();
                 warFile.delete();
@@ -2155,11 +2238,57 @@ public class Service implements Runnable
             //JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort); hangs on RMI Reaper
             Runtime.getRuntime().exec("kill "+pid); //still runs the shutdown hooks!!!
 
-            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
-            writeProperties(properties, configFileForServicePort(servicePort));
-
             return pid;
         }
+    }
+
+    private
+    void waitForProcessToTerminate(Properties properties) throws InterruptedException, IOException
+    {
+        final long startTime=System.currentTimeMillis();
+        final long deadline=startTime+10000;
+
+        while (isRunning(properties))
+        {
+            if (System.currentTimeMillis()>deadline)
+            {
+                log.println("process did not terminate: "+humanReadable(properties)+" pid="+pid(properties));
+                return;
+            }
+            Thread.sleep(200);
+        }
+
+        final long duration=System.currentTimeMillis()-startTime;
+
+        String seconds=String.format("%1$.3f", (duration/1000.0));
+        log.println("process has terminated: "+humanReadable(properties)+" (pid="+pid(properties)+") in "+seconds+" seconds (wait time)");
+        properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+        writeProperties(properties);
+    }
+
+    private
+    void writeProperties(Properties properties) throws IOException
+    {
+        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+        writeProperties(properties, configFileForServicePort(servicePort));
+    }
+
+    private
+    int doKillCommand(Properties properties) throws IOException
+    {
+        final int pid=pid(properties);
+
+        if (pid>0 && isRunning(properties))
+        {
+            final String command="kill -9 "+pid; //does not run the shutdown hooks, but sometimes needed if java gets stuck
+            log.println(command);
+            Runtime.getRuntime().exec(command);
+
+            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+            writeProperties(properties);
+        }
+
+        return pid;
     }
 
     //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
