@@ -498,12 +498,17 @@ public class Runner
                 return;
             }
 
-            final Class aClass=classLoader.loadClass(SERVER_RECEIVER_HOOK_CLASS_NAME);
-
-            if (aClass==null)
+            final Class aClass;
             {
-                System.err.println("maybeInjectServerClassIntoWebapp: no such class: "+ SERVER_RECEIVER_HOOK_CLASS_NAME);
-                return;
+                try
+                {
+                    aClass=classLoader.loadClass(SERVER_RECEIVER_HOOK_CLASS_NAME);
+                }
+                catch (ClassNotFoundException e)
+                {
+                    System.err.println("maybeInjectServerClassIntoWebapp: no such class: "+ SERVER_RECEIVER_HOOK_CLASS_NAME);
+                    return;
+                }
             }
 
             final Object o=constructAndSetServer(aClass, server);
@@ -573,12 +578,17 @@ public class Runner
                 return null;
             }
 
-            final Class aClass=classLoader.loadClass(ERROR_HANDLER_HOOK_CLASS_NAME);
-
-            if (aClass==null)
+            final Class aClass;
             {
-                System.err.println("maybeLoadWebappContainerErrorHandler: no such class: "+ ERROR_HANDLER_HOOK_CLASS_NAME);
-                return null;
+                try
+                {
+                    aClass=classLoader.loadClass(ERROR_HANDLER_HOOK_CLASS_NAME);
+                }
+                catch (ClassNotFoundException e)
+                {
+                    System.err.println("maybeLoadWebappContainerErrorHandler: no such class: "+ ERROR_HANDLER_HOOK_CLASS_NAME);
+                    return null;
+                }
             }
 
             if (ErrorHandler.class.isAssignableFrom(aClass))
