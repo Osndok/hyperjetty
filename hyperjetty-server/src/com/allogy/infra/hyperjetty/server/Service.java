@@ -2851,20 +2851,42 @@ public class Service implements Runnable
     }
 
     private
-    String guessNameFromWar(String warBaseName)
+    String guessNameFromWar(final String warBaseName)
     {
-        int period=warBaseName.lastIndexOf('.');
-        if (period>0)
-        {
-            return warBaseName.substring(0, period);
+		String retval;
+		{
+	        int period=warBaseName.lastIndexOf('.');
+    	    if (period>0)
+        	{
+            	retval=warBaseName.substring(0, period);
+        	}
+        	else
+			{
+				retval=warBaseName;
+			}
         }
-        else
-        {
-            return warBaseName;
-        }
+
+		retval=maybeTrimSuffix(retval, "-server");
+		retval=maybeTrimSuffix(retval, "-service");
+		retval=maybeTrimSuffix(retval, "-gateway");
+
+		return retval;
     }
 
-    private String commaJoinedOrNull(String fieldName, Set<String> set)
+	private
+	String maybeTrimSuffix(String tractor, String trailer)
+	{
+		if (tractor.endsWith(trailer))
+		{
+			return tractor.substring(0, tractor.length()-trailer.length());
+		}
+		else
+		{
+			return tractor;
+		}
+	}
+
+	private String commaJoinedOrNull(String fieldName, Set<String> set)
     {
         if (set==null)
         {
