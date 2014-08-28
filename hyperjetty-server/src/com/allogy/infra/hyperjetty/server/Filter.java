@@ -4,15 +4,7 @@ import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import java.util.*;
 
-import static com.allogy.infra.hyperjetty.common.ServletProp.HEAP_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProp.JMX_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProp.NAME;
-import static com.allogy.infra.hyperjetty.common.ServletProp.PATH;
-import static com.allogy.infra.hyperjetty.common.ServletProp.PERM_SIZE;
-import static com.allogy.infra.hyperjetty.common.ServletProp.PID;
-import static com.allogy.infra.hyperjetty.common.ServletProp.SERVICE_PORT;
-import static com.allogy.infra.hyperjetty.common.ServletProp.TAGS;
-import static com.allogy.infra.hyperjetty.common.ServletProp.VERSION;
+import static com.allogy.infra.hyperjetty.common.ServletProp.*;
 
 /**
  * User: robert
@@ -480,7 +472,7 @@ class Filter
         }
         if (path!=null)
         {
-            key=PATH.toString();
+            key=CONTEXT_PATH.toString();
             if (!matches(p, key, path))
             {
                 return false;
