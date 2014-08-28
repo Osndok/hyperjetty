@@ -2869,6 +2869,7 @@ public class Service implements Runnable
 		retval=maybeTrimSuffix(retval, "-server");
 		retval=maybeTrimSuffix(retval, "-service");
 		retval=maybeTrimSuffix(retval, "-gateway");
+		retval=maybeTrimSuffix(retval, "-backend");
 
 		return retval;
     }
