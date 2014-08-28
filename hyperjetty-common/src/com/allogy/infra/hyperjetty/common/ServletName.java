@@ -15,6 +15,7 @@ class ServletName
 	{
 		retval=maybeTrimSuffix(retval, "-server");
 		retval=maybeTrimSuffix(retval, "-service");
+		retval=maybeTrimSuffix(retval, "-servlet");
 		retval=maybeTrimSuffix(retval, "-gateway");
 		retval=maybeTrimSuffix(retval, "-backend");
 
