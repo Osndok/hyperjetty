@@ -34,7 +34,7 @@ public class MavenUtils
                     try {
                         Properties p=new Properties();
                         p.load(inputStream);
-                        return p.getProperty("version");
+                        return onlyIfItLooksLikeAVersionNumber(p.getProperty("version"));
                     } finally {
                         inputStream.close();
                     }
@@ -46,7 +46,16 @@ public class MavenUtils
         return null;
     }
 
-    public static
+	private static
+	String onlyIfItLooksLikeAVersionNumber(String likelyVersionNumber)
+	{
+		if (likelyVersionNumber.indexOf('$')>=0) return null;
+		if (likelyVersionNumber.indexOf('{')>=0) return null;
+		if (likelyVersionNumber.indexOf(' ')>=0) return null;
+		return likelyVersionNumber;
+	}
+
+	public static
     void main(String[] args)
     {
         for (String s : args) {
