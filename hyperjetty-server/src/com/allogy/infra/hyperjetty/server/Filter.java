@@ -1,5 +1,6 @@
 package com.allogy.infra.hyperjetty.server;
 
+import com.allogy.infra.hyperjetty.common.ServletName;
 import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import java.util.*;
@@ -481,7 +482,7 @@ class Filter
         if (name!=null)
         {
             key=NAME.toString();
-            if (!matches(p, key, name))
+            if (!rawOrNameFilteredMatches(p, key, name))
             {
                 return false;
             }
@@ -506,7 +507,7 @@ class Filter
         return true;
     }
 
-    /* SLOW! */
+	/* SLOW! */
     private
     boolean multiMatches(Properties p, String key, Set<String> target)
     {
@@ -539,7 +540,14 @@ class Filter
         return (value!=null && target.contains(value));
     }
 
-    public
+	private
+	boolean rawOrNameFilteredMatches(Properties p, String key, Set<String> target)
+	{
+		String value=p.getProperty(key);
+		return (value!=null && (target.contains(value) || target.contains(ServletName.filter(value))));
+	}
+
+	public
     boolean implicitlyMatchesEverything()
     {
         return (

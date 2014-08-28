@@ -2,6 +2,7 @@ package com.allogy.infra.hyperjetty.server;
 
 import com.allogy.infra.hyperjetty.common.Config;
 import com.allogy.infra.hyperjetty.common.ProcessUtils;
+import com.allogy.infra.hyperjetty.common.ServletName;
 import com.allogy.infra.hyperjetty.common.ServletProp;
 
 import javax.management.*;
@@ -2852,39 +2853,21 @@ public class Service implements Runnable
 
     private
     String guessNameFromWar(final String warBaseName)
-    {
+	{
 		String retval;
 		{
-	        int period=warBaseName.lastIndexOf('.');
-    	    if (period>0)
-        	{
-            	retval=warBaseName.substring(0, period);
-        	}
-        	else
+			int period = warBaseName.lastIndexOf('.');
+			if (period > 0)
 			{
-				retval=warBaseName;
+				retval = warBaseName.substring(0, period);
 			}
-        }
-
-		retval=maybeTrimSuffix(retval, "-server");
-		retval=maybeTrimSuffix(retval, "-service");
-		retval=maybeTrimSuffix(retval, "-gateway");
-		retval=maybeTrimSuffix(retval, "-backend");
-
-		return retval;
-    }
-
-	private
-	String maybeTrimSuffix(String tractor, String trailer)
-	{
-		if (tractor.endsWith(trailer))
-		{
-			return tractor.substring(0, tractor.length()-trailer.length());
+			else
+			{
+				retval = warBaseName;
+			}
 		}
-		else
-		{
-			return tractor;
-		}
+
+		return ServletName.filter(retval);
 	}
 
 	private String commaJoinedOrNull(String fieldName, Set<String> set)
