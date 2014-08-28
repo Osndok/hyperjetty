@@ -2343,7 +2343,7 @@ public class Service implements Runnable
 
         /* Optional arguments */
         String name        = oneOrNull("name", filter.name);
-        String path        = oneOrNull("path", filter.path);
+        String contextPath = oneOrNull("path", filter.path);
 
         String tag         = commaJoinedOrNull("tag"  , filter.tag  );
         String version     = commaJoinedOrNull("version", filter.version);
@@ -2375,7 +2375,7 @@ public class Service implements Runnable
 
         log.println("WAR ="+war );
         log.println("NAME="+name);
-        log.println("PATH="+path);
+        log.println("PATH="+contextPath);
 
         final PortReservation initialPortReservation;
         {
@@ -2593,17 +2593,17 @@ public class Service implements Runnable
             p=new Properties();
         }
 
+		//----- from this point, command line options (at the top of the function) override in-built options
+
         if (version!=null)
         {
             maybeSet(p, VERSION, version);
         }
 
-        /*
-        if (portNumberInLogFilename!=null)
-        {
-            p.setProperty(PORT_NUMBER_IN_LOG_FILENAME.toString(), portNumberInLogFilename);
-        }
-        */
+		if (contextPath!=null)
+		{
+			p.setProperty(CONTEXT_PATH.toString(), contextPath);
+		}
 
         if (tag!=null)
         {
