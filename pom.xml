@@ -27,6 +27,24 @@
         <developerConnection>scm:git:ssh://devel.allogy.com/projects/hyperjetty.git</developerConnection>
     </scm>
 
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.sap.prd.mobile.ios.maven.plugins</groupId>
+				<artifactId>resolve-pom-maven-plugin</artifactId>
+				<version>1.0</version>
+				<executions>
+					<execution>
+						<id>resolve-pom-props</id>
+						<goals>
+							<goal>resolve-pom-props</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 	<dependencies>
 
 	</dependencies>
