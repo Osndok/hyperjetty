@@ -2234,7 +2234,15 @@ public class Service implements Runnable
         }
         else
         {
-            JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
+			try
+			{
+				JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
+			}
+			catch (Exception e)
+			{
+				log.println("unable to determine final memory usage of process #"+pid);
+				e.printStackTrace(log);
+			}
 
             //JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort); hangs on RMI Reaper
             Runtime.getRuntime().exec("kill "+pid); //still runs the shutdown hooks!!!
