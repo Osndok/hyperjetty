@@ -24,30 +24,35 @@ public class StatisticsHandler2 extends HandlerWrapper
 {
 	private final AtomicLong _statsStartedAt = new AtomicLong();
 
+	/**
+	 * With a half-life of ten seconds, this will give a reasonable picture of the
+	 * RPS for the last minute.
+	 */
 	private final TimeShelvedAverage _requestRate = new TimeShelvedAverage(1000, 10);
 
-	private final CounterStatistic _requestStats = new CounterStatistic();
-	private final SampleStatistic _requestTimeStats = new SampleStatistic();
-	private final CounterStatistic _dispatchedStats = new CounterStatistic();
-	private final SampleStatistic _dispatchedTimeStats = new SampleStatistic();
-	private final CounterStatistic _suspendStats = new CounterStatistic();
+	private final CounterStatistic _requestStats        = new CounterStatistic();
+	private final SampleStatistic  _requestTimeStats    = new SampleStatistic();
+	private final CounterStatistic _dispatchedStats     = new CounterStatistic();
+	private final SampleStatistic  _dispatchedTimeStats = new SampleStatistic();
+	private final CounterStatistic _suspendStats        = new CounterStatistic();
 
 	private final AtomicInteger _resumes = new AtomicInteger();
 	private final AtomicInteger _expires = new AtomicInteger();
 
-	private final AtomicInteger _responses1xx = new AtomicInteger();
-	private final AtomicInteger _responses2xx = new AtomicInteger();
-	private final AtomicInteger _responses3xx = new AtomicInteger();
-	private final AtomicInteger _responses4xx = new AtomicInteger();
-	private final AtomicInteger _responses5xx = new AtomicInteger();
-	private final AtomicLong _responsesTotalBytes = new AtomicLong();
+	private final AtomicInteger _responses1xx        = new AtomicInteger();
+	private final AtomicInteger _responses2xx        = new AtomicInteger();
+	private final AtomicInteger _responses3xx        = new AtomicInteger();
+	private final AtomicInteger _responses4xx        = new AtomicInteger();
+	private final AtomicInteger _responses5xx        = new AtomicInteger();
+	private final AtomicLong    _responsesTotalBytes = new AtomicLong();
 
 	private final ContinuationListener _onCompletion = new ContinuationListener()
 	{
-		public void onComplete(Continuation continuation)
+		public
+		void onComplete(Continuation continuation)
 		{
-			final Request request = ((AsyncContinuation)continuation).getBaseRequest();
-			final long elapsed = System.currentTimeMillis()-request.getTimeStamp();
+			final Request request = ((AsyncContinuation) continuation).getBaseRequest();
+			final long elapsed = System.currentTimeMillis() - request.getTimeStamp();
 
 			_requestStats.decrement();
 			_requestTimeStats.set(elapsed);
@@ -58,7 +63,8 @@ public class StatisticsHandler2 extends HandlerWrapper
 				_suspendStats.decrement();
 		}
 
-		public void onTimeout(Continuation continuation)
+		public
+		void onTimeout(Continuation continuation)
 		{
 			_expires.incrementAndGet();
 		}
@@ -67,7 +73,8 @@ public class StatisticsHandler2 extends HandlerWrapper
 	/**
 	 * Resets the current request statistics.
 	 */
-	public void statsReset()
+	public
+	void statsReset()
 	{
 		_requestRate.reset();
 
@@ -90,7 +97,13 @@ public class StatisticsHandler2 extends HandlerWrapper
 	}
 
 	@Override
-	public void handle(String path, Request request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws IOException, ServletException
+	public
+	void handle(
+				   String path,
+				   Request request,
+				   HttpServletRequest httpRequest,
+				   HttpServletResponse httpResponse
+	) throws IOException, ServletException
 	{
 		_dispatchedStats.increment();
 		_requestRate.lowContentionIncrement();
