@@ -119,7 +119,7 @@
 		<dependency>
             <groupId>org.mortbay.jetty</groupId>
             <artifactId>jetty-runner</artifactId>
-            <version>8.1.14.v20131031</version>
+            <version>8.1.16.v20140903</version>
             <scope>provided</scope>
         </dependency>
 
