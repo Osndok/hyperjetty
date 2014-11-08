@@ -296,7 +296,10 @@ public class Runner
                         if (handlers.getChildHandlerByClass(StatisticsHandler.class) == null)
                         {
                             StatisticsHandler statsHandler = new StatisticsHandler();
+
+							//TODO: it would be nice if calls to the stats servlet did not count against the stats, no?
                             prependHandler(statsHandler,handlers);
+
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
 
@@ -424,7 +427,7 @@ public class Runner
                 if (!ctx.exists())
                     usage("Context '"+ctx+"' does not exist");
 
-                // Configure the context
+                // Configure the primary webapp context
                 if (!ctx.isDirectory() && ctx.toString().toLowerCase().endsWith(".xml"))
                 {
                     // It is a context config file
