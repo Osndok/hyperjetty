@@ -3449,6 +3449,9 @@ public class Service implements Runnable
 
             if (filter.tag==null && anyTags)
             {
+				final
+				String tagString=reorderTagString(p.getProperty(TAGS.toString(), ""));
+
                 //append("|     Tag     ");
                 //append("+-------------");
                 //append("| production  ");
@@ -3456,7 +3459,16 @@ public class Service implements Runnable
                 //append("| development ");
                 //append("| integration ");
                 line.append("| ");
-                line.append(String.format("%-11s", p.getProperty(TAGS.toString(), "")));
+
+				if (tagString.length()<=11)
+				{
+					line.append(String.format("%-11s", tagString));
+				}
+				else
+				{
+					line.append(tagString.substring(0, 11));
+				}
+
                 line.append(' ');
             }
 
@@ -3482,95 +3494,145 @@ public class Service implements Runnable
         log.println(message);
     }
 
-    private
-    boolean anyPropertyHas(List<Properties> matchingProperties, ServletProp key)
-    {
-        String keyString=key.toString();
+	private
+	String reorderTagString(String in)
+	{
+		String[] bits=in.split(",");
 
-        for (Properties property : matchingProperties)
-        {
-            if (property.containsKey(keyString))
-            {
-                return true;
-            }
-        }
+		if (bits.length==1) return in;
 
-        return false;
-    }
+		List<String> sortable=new ArrayList<String>(bits.length);
 
-    private
-    List<Properties> propertiesFromMatchingConfigFiles(Filter filter) throws IOException
-    {
-        List<Properties> retval=new ArrayList<Properties>();
+		Collections.addAll(sortable, bits);
+		Collections.sort(sortable, tagComparator);
 
-        ServletStateChecker servletStateChecker=new PropFileServletChecker();
+		final
+		StringBuilder sb=new StringBuilder();
 
-        File[] files=etcDirectory.listFiles();
-        if (files==null) return retval;
-        Arrays.sort(files);
+		for (String s : sortable)
+		{
+			sb.append(s);
+			sb.append(',');
+		}
 
-        for (File file : files)
-        {
-            if (!file.getName().endsWith(".config"))
-            {
-                continue;
-            }
-            Properties p=propertiesFromFile(file);
-            if (filter.matches(p, servletStateChecker))
-            {
-                retval.add(p);
-            }
-        }
-        return retval;
-    }
+		sb.deleteCharAt(sb.length()-1);
 
-    private
-    List<Properties> propertiesFromAllConfigFiles() throws IOException
-    {
-        List<Properties> retval=new ArrayList<Properties>();
+		return sb.toString();
+	}
 
-        File[] files=etcDirectory.listFiles();
-        if (files==null) return retval;
-        Arrays.sort(files);
+	private final
+	Comparator<String> tagComparator = new Comparator<String>()
+	{
+		@Override
+		public
+		int compare(String a, String b)
+		{
+			int aL=a.length();
+			int bL=b.length();
 
-        for (File file : files)
-        {
-            if (!file.getName().endsWith(".config"))
-            {
-                continue;
-            }
-            retval.add(propertiesFromFile(file));
-        }
-        return retval;
-    }
+			if (aL==bL)
+			{
+				//Tags of the same size are alphabetical.
+				return a.compareTo(b);
+			}
+			else
+			{
+				//Short tags before long tags...
+				return (aL-bL);
+			}
+		}
+	};
 
-    private
-    class PropFileServletChecker implements ServletStateChecker
-    {
+	private
+	boolean anyPropertyHas(List<Properties> matchingProperties, ServletProp key)
+	{
+		String keyString = key.toString();
 
-        @Override
-        public ServletState getServletState(Properties p)
-        {
-            int pid=pid(p);
-            if (pid<=0)
-            {
-                return ServletState.STOP;
-            }
-            if (ProcessUtils.isRunning(pid))
-            {
-                return ServletState.LIVE;
-            }
-            else
-            {
-                return ServletState.DEAD;
-            }
-        }
-    }
+		for (Properties property : matchingProperties)
+		{
+			if (property.containsKey(keyString))
+			{
+				return true;
+			}
+		}
 
-    private static
-    String nodeps_jdk6_base64Encode(String input)
-    {
-        return DatatypeConverter.printBase64Binary(input.getBytes());
-    }
+		return false;
+	}
+
+	private
+	List<Properties> propertiesFromMatchingConfigFiles(Filter filter) throws IOException
+	{
+		List<Properties> retval = new ArrayList<Properties>();
+
+		ServletStateChecker servletStateChecker = new PropFileServletChecker();
+
+		File[] files = etcDirectory.listFiles();
+		if (files == null) return retval;
+		Arrays.sort(files);
+
+		for (File file : files)
+		{
+			if (!file.getName().endsWith(".config"))
+			{
+				continue;
+			}
+			Properties p = propertiesFromFile(file);
+			if (filter.matches(p, servletStateChecker))
+			{
+				retval.add(p);
+			}
+		}
+		return retval;
+	}
+
+	private
+	List<Properties> propertiesFromAllConfigFiles() throws IOException
+	{
+		List<Properties> retval = new ArrayList<Properties>();
+
+		File[] files = etcDirectory.listFiles();
+		if (files == null) return retval;
+		Arrays.sort(files);
+
+		for (File file : files)
+		{
+			if (!file.getName().endsWith(".config"))
+			{
+				continue;
+			}
+			retval.add(propertiesFromFile(file));
+		}
+		return retval;
+	}
+
+	private
+	class PropFileServletChecker implements ServletStateChecker
+	{
+
+		@Override
+		public
+		ServletState getServletState(Properties p)
+		{
+			int pid = pid(p);
+			if (pid <= 0)
+			{
+				return ServletState.STOP;
+			}
+			if (ProcessUtils.isRunning(pid))
+			{
+				return ServletState.LIVE;
+			}
+			else
+			{
+				return ServletState.DEAD;
+			}
+		}
+	}
+
+	private static
+	String nodeps_jdk6_base64Encode(String input)
+	{
+		return DatatypeConverter.printBase64Binary(input.getBytes());
+	}
 
 }
