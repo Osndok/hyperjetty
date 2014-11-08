@@ -52,10 +52,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class Runner
 {
@@ -63,17 +60,17 @@ public class Runner
 
 	public static final
 	String[] __plusConfigurationClasses = new String[]
-	{
-		org.eclipse.jetty.webapp.WebInfConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.webapp.WebXmlConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.webapp.MetaInfConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.webapp.FragmentConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.plus.webapp.EnvConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.plus.webapp.PlusConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.annotations.AnnotationConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.webapp.JettyWebXmlConfiguration.class.getCanonicalName(),
-		org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName()
-	};
+											  {
+												  org.eclipse.jetty.webapp.WebInfConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.webapp.WebXmlConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.webapp.MetaInfConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.webapp.FragmentConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.plus.webapp.EnvConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.plus.webapp.PlusConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.annotations.AnnotationConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.webapp.JettyWebXmlConfiguration.class.getCanonicalName(),
+												  org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName()
+											  };
 
 	public static final String __containerIncludeJarPattern = ".*/.*jsp-api-[^/]*\\.jar$|.*/.*jsp-[^/]*\\.jar$|.*/.*taglibs[^/]*\\.jar$|.*/.*jstl[^/]*\\.jar$|.*/.*jsf-impl-[^/]*\\.jar$|.*/.*javax.faces-[^/]*\\.jar$|.*/.*myfaces-impl-[^/]*\\.jar$|.*/.*jetty-runner-[^/]*\\.jar$";
 
@@ -94,7 +91,8 @@ public class Runner
 	protected String _statsPropFile;
 	protected boolean _clusteredSessions = true;
 
-	protected ErrorHandler errorHandler;
+	protected ErrorHandler      errorHandler;
+	private   StatisticsHandler statsHandler;
 
 	public
 	Runner()
@@ -102,6 +100,7 @@ public class Runner
 
 	}
 
+	private static final boolean STATS_EFFECTS_STATS = Boolean.getBoolean("STATS_EFFECTS_STATS");
 
 	public
 	void usage(String error)
@@ -143,15 +142,15 @@ public class Runner
 			if ("--lib".equals(args[i]))
 			{
 				Resource lib = Resource.newResource(args[++i]);
-                if (!lib.exists() || !lib.isDirectory())
-                    usage("No such lib directory "+lib);
-                expandJars(lib);
-            }
-            else if ("--jar".equals(args[i]))
-            {
-                Resource jar = Resource.newResource(args[++i]);
-                if (!jar.exists() || jar.isDirectory())
-                    usage("No such jar "+jar);
+				if (!lib.exists() || !lib.isDirectory())
+					usage("No such lib directory " + lib);
+				expandJars(lib);
+			}
+			else if ("--jar".equals(args[i]))
+			{
+				Resource jar = Resource.newResource(args[++i]);
+				if (!jar.exists() || jar.isDirectory())
+					usage("No such jar "+jar);
                 _classpath.add(jar.getURL());
             }
             else if ("--classes".equals(args[i]))
@@ -295,10 +294,12 @@ public class Runner
                         //if no stats handler already configured
                         if (handlers.getChildHandlerByClass(StatisticsHandler.class) == null)
                         {
-                            StatisticsHandler statsHandler = new StatisticsHandler();
+                            statsHandler = new StatisticsHandler();
 
-							//TODO: it would be nice if calls to the stats servlet did not count against the stats, no?
-                            prependHandler(statsHandler,handlers);
+							if (STATS_EFFECTS_STATS)
+							{
+								prependHandler(statsHandler, handlers);
+							}
 
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
@@ -450,7 +451,20 @@ public class Runner
 
                     LOG.info("Deploying "+ctx.toString()+" @ "+contextPath);
 
-                    WebAppContext webapp = new WebAppContext(_contexts,ctx.toString(),contextPath);
+                    WebAppContext webapp;
+
+					if (STATS_EFFECTS_STATS || !_enableStatsGathering)
+					{
+						webapp = new WebAppContext(_contexts, ctx.toString(), contextPath);
+					}
+					else
+					{
+						HandlerCollection subContext=new HandlerCollection();
+						subContext.addHandler(statsHandler);
+						webapp = new WebAppContext(subContext, ctx.toString(), contextPath);
+						_contexts.addHandler(subContext);
+					}
+
                     webapp.setConfigurationClasses(__plusConfigurationClasses);
                     webapp.setAttribute("org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern", __containerIncludeJarPattern);
 

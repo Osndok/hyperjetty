@@ -53,6 +53,9 @@ class TimeShelvedAverage
 		}
 	}
 
+	/**
+	 * Transfers the current count to the running average once every period.
+	 */
 	private synchronized
 	void maybeDoTimeShift(long now, int incremented)
 	{
