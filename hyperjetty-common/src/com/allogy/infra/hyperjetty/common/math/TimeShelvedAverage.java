@@ -61,27 +61,21 @@ class TimeShelvedAverage
 			alphaTime = now;
 		}
 		else
+		if (now > alphaTime + period + period)
+		{
+			//NB: inaccurate, and racy... but we know that we have at least one (that triggered this), and a slow rate (skipped interval)
+			long plusOne=countSinceAlphaTime.getAndSet(incremented);
+
+			runningAverage.report(plusOne-1, alphaTime+period);
+
+			alphaTime = now;
+		}
+		else
 		if (now > alphaTime + period)
 		{
 			alphaTime = now;
 
-			final
-			int skippedPeriods=(int)Math.min(count, (now-(alphaTime+period))/period);
-
-			if (skippedPeriods == 0)
-			{
-				runningAverage.report(countSinceAlphaTime.getAndSet(0));
-			}
-			else
-			{
-				//NB: inaccurate, but we know that we have at least one (that triggered this)
-				countSinceAlphaTime.set(incremented);
-
-				for(int i=0; i<skippedPeriods; i++)
-				{
-					runningAverage.report(0);
-				}
-			}
+			runningAverage.report(countSinceAlphaTime.getAndSet(0), now);
 		}
 	}
 

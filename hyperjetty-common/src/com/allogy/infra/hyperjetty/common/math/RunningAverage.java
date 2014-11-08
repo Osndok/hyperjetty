@@ -25,13 +25,13 @@ public interface RunningAverage extends Serializable {
 	 *
 	 * @param d
 	 */
-	public void report(double d);
+	public void report(double d, long time);
 
 	/**
 	 *
 	 * @param d
 	 */
-	public void report(long d);
+	public void report(long d, long time);
 
 	/**
 	 * Get what currentValue() would be if we reported some given value

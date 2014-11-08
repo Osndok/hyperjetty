@@ -22,7 +22,6 @@ class TimeDecayingRunningAverage implements RunningAverage
 {
 
 	private static final long serialVersionUID = -1;
-	static final         int  MAGIC            = 0x5ff4ac94;
 
 	@Override
 	public final
@@ -122,28 +121,22 @@ class TimeDecayingRunningAverage implements RunningAverage
 	 */
 	//@Override
 	public
-	void report(double d)
+	void report(double d, long now)
 	{
 		synchronized (this)
 		{
-			// Must synchronize first to achieve serialization.
-			long now = System.currentTimeMillis();
-
 			if (d < minReport)
 			{
-				//Logger.error(this, "Impossible: "+d+" on "+this, new Exception("error"));
 				return;
 			}
 
 			if (d > maxReport)
 			{
-				//Logger.error(this, "Impossible: "+d+" on "+this, new Exception("error"));
 				return;
 			}
 
 			if (Double.isInfinite(d) || Double.isNaN(d))
 			{
-				//Logger.error(this, "Reported infinity or NaN to "+this+" : "+d, new Exception("error"));
 				return;
 			}
 
@@ -220,9 +213,9 @@ class TimeDecayingRunningAverage implements RunningAverage
 	 */
 	//@Override
 	public
-	void report(long d)
+	void report(long d, long now)
 	{
-		report((double) d);
+		report((double) d, now);
 	}
 
 	//@Override
@@ -230,34 +223,6 @@ class TimeDecayingRunningAverage implements RunningAverage
 	double valueIfReported(double r)
 	{
 		throw new UnsupportedOperationException();
-	}
-
-	/**
-	 * @param out
-	 * @throws IOException
-	 */
-	public
-	void writeDataTo(DataOutputStream out) throws IOException
-	{
-		long now = System.currentTimeMillis();
-		synchronized (this)
-		{
-			out.writeInt(MAGIC);
-			out.writeInt(1);
-			out.writeDouble(curValue);
-			out.writeBoolean(started);
-			out.writeLong(totalReports);
-			out.writeLong(now - createdTime);
-		}
-	}
-
-	/**
-	 * @return
-	 */
-	public
-	int getDataLength()
-	{
-		return 4 + 4 + 8 + 8 + 1 + 8 + 8;
 	}
 
 	//@Override

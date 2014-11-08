@@ -24,7 +24,7 @@ public class StatisticsHandler2 extends HandlerWrapper
 {
 	private final AtomicLong _statsStartedAt = new AtomicLong();
 
-	private final TimeShelvedAverage _requestRate = new TimeShelvedAverage(1000, 60);
+	private final TimeShelvedAverage _requestRate = new TimeShelvedAverage(1000, 30);
 
 	private final CounterStatistic _requestStats = new CounterStatistic();
 	private final SampleStatistic _requestTimeStats = new SampleStatistic();
