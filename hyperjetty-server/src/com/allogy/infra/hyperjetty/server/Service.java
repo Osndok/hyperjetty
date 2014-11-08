@@ -3566,11 +3566,11 @@ public class Service implements Runnable
 
 						if (lessThan>0)
 						{
-							retval=line.substring(prefix.length()+1, lessThan);
+							retval=line.substring(prefix.length(), lessThan);
 						}
 						else
 						{
-							retval=line.substring(prefix.length()+1);
+							retval=line.substring(prefix.length());
 						}
 					}
 
