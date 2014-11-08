@@ -3355,19 +3355,24 @@ public class Service implements Runnable
             {
                 String jmxString=p.getProperty(JMX_PORT.toString());
 
-                if (jmxString!=null) {
-                    try {
+                if (jmxString!=null)
+				{
+                    try
+					{
                         int jmxPort=Integer.parseInt(jmxString);
                         smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
-                    } catch (Throwable t) {
+                    }
+					catch (Throwable t)
+					{
                         t.printStackTrace();
                     }
                 }
+
                 if (smu==null)
                 {
                     //line.append(" | LIVE |    No JMX     |    No JMX     ");
-                    String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
-                    String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+                    String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
+                    String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
                     line.append(" | LIVE |  ");
                     line.append(String.format("???? of %4s", heap));
@@ -3383,9 +3388,11 @@ public class Service implements Runnable
                     line.append(smu.getPermGenSummary());
                     line.append(' ');
                 }
-            } else {
-                String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
-                String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+            }
+			else
+			{
+                String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
+                String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
                 line.append(" | DEAD |  ");
                 line.append(String.format("%12s", heap));
