@@ -3262,11 +3262,12 @@ public class Service implements Runnable
                 //append(" 10000 |");
             }
 
-            a.append("  PID  | Life |  Heap Usage   | PermGen Usage ");
-            b.append("-------+------+---------------+---------------");
-            //append(" 12345 | LIVE |  100% of 999m |  100% of 999m ");
-            //append(" 12333 | DEAD |   10% of   3g |   10% of   9m ");
-            //append("    -1 | STOP |    - N/A -    |    - N/A -    ");
+            a.append("  PID  | Life | RPS  |  Heap Usage   | PermGen Usage ");
+            b.append("-------+------+------+---------------+---------------");
+            //append(" 12345 | LIVE | 100m |  100% of 999m |  100% of 999m ");
+            //append(" 12333 | DEAD |  10k |   10% of   3g |   10% of   9m ");
+            //append("    -1 | STOP | 999  |    - N/A -    |    - N/A -    ");
+			//append(" 12333 | DEAD | 0.03 |   10% of   3g |   10% of   9m ");
 
             if (filter.version==null && anyVersions)
             {
@@ -3328,12 +3329,13 @@ public class Service implements Runnable
                 line.append(" |");
             }
 
-            //append("  PID  | Life |  Heap Usage   | PermGen Usage ");
-            //append("-------+------+---------------+---------------");
-            //append(" 12345 | LIVE |  100% of 999m |  100% of 999m ");
-            //append(" 12333 | DEAD |   10% of   3g |   10% of   9m ");
-            //append("    -1 | STOP |    - N/A -    |    - N/A -    ");
-            //append(" 12222 | LIVE |    No JMX     |    No JMX     ");
+            //append("  PID  | Life | RPS  |  Heap Usage   | PermGen Usage ");
+            //append("-------+------+------+---------------+---------------");
+            //append(" 12345 | LIVE | 121m |  100% of 999m |  100% of 999m ");
+            //append(" 12333 | DEAD |  32k |   10% of   3g |   10% of   9m ");
+            //append("    -1 | STOP |      |    - N/A -    |    - N/A -    ");
+            //append(" 12222 | LIVE | 10.8 |    No JMX     |    No JMX     ");
+			//append("    -1 | STOP | 0.01 |    - N/A -    |    - N/A -    ");
             int pid=pid(p);
 
             line.append(' ');
@@ -3355,7 +3357,7 @@ public class Service implements Runnable
                 String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
                 String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
-                line.append(" | STOP |  ");
+                line.append(" | STOP |      |  ");
                 line.append(String.format("%12s", heap));
                 line.append(" |  ");
                 line.append(String.format("%12s", perm));
@@ -3363,6 +3365,7 @@ public class Service implements Runnable
             }
             else if (ProcessUtils.isRunning(pid))
             {
+				String requestsPerSecond="tba";
                 String jmxString=p.getProperty(JMX_PORT.toString());
 
                 if (jmxString!=null)
@@ -3380,11 +3383,11 @@ public class Service implements Runnable
 
                 if (smu==null)
                 {
-                    //line.append(" | LIVE |    No JMX     |    No JMX     ");
+                    //line.append(" | LIVE | 123m |    No JMX     |    No JMX     ");
                     String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
                     String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
-                    line.append(" | LIVE |  ");
+                    line.append(String.format(" | LIVE | %4s |  ", requestsPerSecond));
                     line.append(String.format("???? of %4s", heap));
                     line.append(" |  ");
                     line.append(String.format("???? of %4s", perm));
@@ -3392,7 +3395,7 @@ public class Service implements Runnable
                 }
                 else
                 {
-                    line.append(" | LIVE |  ");
+					line.append(String.format(" | LIVE | %4s |  ", requestsPerSecond));
                     line.append(smu.getHeapSummary());
                     line.append(" |  ");
                     line.append(smu.getPermGenSummary());
@@ -3404,7 +3407,7 @@ public class Service implements Runnable
                 String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
                 String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
-                line.append(" | DEAD |  ");
+                line.append(" | DEAD |      |  ");
                 line.append(String.format("%12s", heap));
                 line.append(" |  ");
                 line.append(String.format("%12s", perm));

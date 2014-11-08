@@ -1,6 +1,8 @@
 package org.eclipse.jetty.server.handler;
 
 import java.io.IOException;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -426,7 +428,7 @@ public class StatisticsHandler2 extends HandlerWrapper
 		sb.append("Statistics gathering started ").append(getStatsOnMs()).append("ms ago").append("<br />\n");
 
 		sb.append("<h2>Requests:</h2>\n");
-		sb.append("Per Second: ").append((int)_requestRate.getValue()).append("<br />\n");
+		sb.append("Per Second: ").append(getRequestRate()).append("<br />\n");
 		sb.append("Total requests: ").append(getRequests()).append("<br />\n");
 		sb.append("Active requests: ").append(getRequestsActive()).append("<br />\n");
 		sb.append("Max active requests: ").append(getRequestsActiveMax()).append("<br />\n");
@@ -460,5 +462,74 @@ public class StatisticsHandler2 extends HandlerWrapper
 
 		return sb.toString();
 
+	}
+
+	private final static
+	DecimalFormat twoPlaces = new DecimalFormat("#.##");
+
+	private final static
+	DecimalFormat onePlace = new DecimalFormat("#.#");
+
+	static
+	{
+		onePlace.setRoundingMode(RoundingMode.DOWN);
+		twoPlaces.setRoundingMode(RoundingMode.DOWN);
+	}
+
+	/**
+	 * @return an up-to-four-character string that represents the number of requests per second this instance is handling.
+	 */
+	private
+	String getRequestRate()
+	{
+		double rate = _requestRate.getValue();
+
+		if (rate < 0)
+		{
+			return "0.00";
+		}
+		else
+		if (rate < 10)
+		{
+			//Minimum: "0.00", max: "9.99"
+			return twoPlaces.format(rate);
+		}
+		else
+		if (rate < 100)
+		{
+			return onePlace.format(rate);
+		}
+		else
+		{
+			long k=(long)(rate/1000);
+
+			if (k<1000)
+			{
+				return k+"k";
+			}
+			else
+			{
+				long m=k/1000;
+
+				if (m<1000)
+				{
+					return m+"m";
+				}
+				else
+				{
+					long b=m/1000;
+
+					if (b<1000)
+					{
+						return b+"b";
+					}
+					else
+					{
+						//Yeah... that's being a bit optimistic WRT computer trends, methinks.
+						return (b / 1000) + "t";
+					}
+				}
+			}
+		}
 	}
 }
