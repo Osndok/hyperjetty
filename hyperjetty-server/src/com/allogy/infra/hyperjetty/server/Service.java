@@ -3239,6 +3239,7 @@ public class Service implements Runnable
     void doStatsCommand(Filter filter, PrintStream out) throws IOException
     {
         List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
+		Map<Properties,String> rpsPerServlet = getRequestsPerSecondForEachServlet(matchingProperties);
 
         out.println("GOOD");
 
@@ -3365,7 +3366,7 @@ public class Service implements Runnable
             }
             else if (ProcessUtils.isRunning(pid))
             {
-				String requestsPerSecond="tba";
+				String requestsPerSecond=rpsPerServlet.get(p);
                 String jmxString=p.getProperty(JMX_PORT.toString());
 
                 if (jmxString!=null)
@@ -3496,6 +3497,95 @@ public class Service implements Runnable
         out.println(message);
         log.println(message);
     }
+
+	private
+	Map<Properties, String> getRequestsPerSecondForEachServlet(List<Properties> propertiesList)
+	{
+		final
+		Map<Properties, String> retval=new HashMap<Properties, String>(propertiesList.size());
+
+		for (Properties properties : propertiesList)
+		{
+			String requestsPerSecondString;
+
+			try
+			{
+				requestsPerSecondString=getRequestsPerSecond(properties);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace(log);
+				requestsPerSecondString="ERR";
+			}
+
+			retval.put(properties, requestsPerSecondString);
+		}
+
+		return retval;
+	}
+
+	private
+	String getRequestsPerSecond(Properties properties) throws IOException
+	{
+		final
+		int pid=pid(properties);
+
+		if (pid<=0)
+		{
+			return "";
+		}
+
+		final
+		String servlet=humanReadable(properties);
+
+		final
+		int port=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+
+		final
+		URLConnection connection = new URL("http://127.0.0.1:" + port + "/stats/").openConnection();
+
+		final
+		BufferedReader br=new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+		try
+		{
+			final
+			String prefix="Per second: ";
+
+			String line;
+
+			while ((line=br.readLine())!=null)
+			{
+				if (line.startsWith(prefix))
+				{
+					final
+					String retval;
+					{
+						final
+						int lessThan=line.indexOf('<');
+
+						if (lessThan>0)
+						{
+							retval=line.substring(prefix.length()+1, lessThan);
+						}
+						else
+						{
+							retval=line.substring(prefix.length()+1);
+						}
+					}
+
+					log.println(servlet+" is at "+retval+" requests-per-second");
+					return retval;
+				}
+			}
+
+			return "n/a";
+		}
+		finally
+		{
+			br.close();
+		}
+	}
 
 	private
 	String reorderTagString(String in)

@@ -428,7 +428,7 @@ public class StatisticsHandler2 extends HandlerWrapper
 		sb.append("Statistics gathering started ").append(getStatsOnMs()).append("ms ago").append("<br />\n");
 
 		sb.append("<h2>Requests:</h2>\n");
-		sb.append("Per Second: ").append(getRequestRate()).append("<br />\n");
+		sb.append("Per second: ").append(getRequestRate()).append("<br />\n");
 		sb.append("Total requests: ").append(getRequests()).append("<br />\n");
 		sb.append("Active requests: ").append(getRequestsActive()).append("<br />\n");
 		sb.append("Max active requests: ").append(getRequestsActiveMax()).append("<br />\n");
