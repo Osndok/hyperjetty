@@ -19,7 +19,11 @@ import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
-import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.NCSARequestLog;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.ShutdownMonitor;
 import org.eclipse.jetty.server.bio.SocketConnector;
 import org.eclipse.jetty.server.handler.*;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
@@ -55,85 +59,90 @@ import java.util.Random;
 
 public class Runner
 {
-    private static final Logger LOG = Log.getLogger(Runner.class);
+	private static final Logger LOG = Log.getLogger(Runner.class);
 
-    public static final String[] __plusConfigurationClasses = new String[] {
-            org.eclipse.jetty.webapp.WebInfConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.WebXmlConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.MetaInfConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.FragmentConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.plus.webapp.EnvConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.plus.webapp.PlusConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.annotations.AnnotationConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.JettyWebXmlConfiguration.class.getCanonicalName(),
-            org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName()
-    };
+	public static final
+	String[] __plusConfigurationClasses = new String[]
+	{
+		org.eclipse.jetty.webapp.WebInfConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.webapp.WebXmlConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.webapp.MetaInfConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.webapp.FragmentConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.plus.webapp.EnvConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.plus.webapp.PlusConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.annotations.AnnotationConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.webapp.JettyWebXmlConfiguration.class.getCanonicalName(),
+		org.eclipse.jetty.webapp.TagLibConfiguration.class.getCanonicalName()
+	};
 
-    public static final String __containerIncludeJarPattern = ".*/.*jsp-api-[^/]*\\.jar$|.*/.*jsp-[^/]*\\.jar$|.*/.*taglibs[^/]*\\.jar$|.*/.*jstl[^/]*\\.jar$|.*/.*jsf-impl-[^/]*\\.jar$|.*/.*javax.faces-[^/]*\\.jar$|.*/.*myfaces-impl-[^/]*\\.jar$|.*/.*jetty-runner-[^/]*\\.jar$";
+	public static final String __containerIncludeJarPattern = ".*/.*jsp-api-[^/]*\\.jar$|.*/.*jsp-[^/]*\\.jar$|.*/.*taglibs[^/]*\\.jar$|.*/.*jstl[^/]*\\.jar$|.*/.*jsf-impl-[^/]*\\.jar$|.*/.*javax.faces-[^/]*\\.jar$|.*/.*myfaces-impl-[^/]*\\.jar$|.*/.*jetty-runner-[^/]*\\.jar$";
 
-    protected Server _server;
-    protected Monitor _monitor;
-    protected URLClassLoader _classLoader;
-    protected List<URL> _classpath=new ArrayList<URL>();
-    protected ContextHandlerCollection _contexts;
-    protected RequestLogHandler _logHandler;
-    protected String _logFile;
-    protected List<String> _configFiles;
-    protected UserTransaction _ut;
-    protected String _utId;
-    protected String _txMgrPropertiesFile;
-    protected Random _random = new Random();
-    protected boolean _isTxServiceAvailable=false;
-    protected boolean _enableStatsGathering=false;
-    protected String _statsPropFile;
-    protected boolean _clusteredSessions=true;
+	protected Server         _server;
+	protected Monitor        _monitor;
+	protected URLClassLoader _classLoader;
+	protected List<URL> _classpath = new ArrayList<URL>();
+	protected ContextHandlerCollection _contexts;
+	protected RequestLogHandler        _logHandler;
+	protected String                   _logFile;
+	protected List<String>             _configFiles;
+	protected UserTransaction          _ut;
+	protected String                   _utId;
+	protected String                   _txMgrPropertiesFile;
+	protected Random  _random               = new Random();
+	protected boolean _isTxServiceAvailable = false;
+	protected boolean _enableStatsGathering = false;
+	protected String _statsPropFile;
+	protected boolean _clusteredSessions = true;
 
-    protected ErrorHandler errorHandler;
+	protected ErrorHandler errorHandler;
 
-    public Runner()
-    {
+	public
+	Runner()
+	{
 
-    }
+	}
 
 
-    public void usage(String error)
-    {
-        if (error!=null)
-            System.err.println("ERROR: "+error);
-        System.err.println("Usage: java [-DDEBUG] [-Djetty.home=dir] -jar jetty-runner.jar [--help|--version] [ server opts] [[ context opts] context ...] ");
-        System.err.println("Server Options:");
-        System.err.println(" --version                          - display version and exit");
-        System.err.println(" --log file                         - request log filename (with optional 'yyyy_mm_dd' wildcard");
-        System.err.println(" --out file                         - info/warn/debug log filename (with optional 'yyyy_mm_dd' wildcard");
-        System.err.println(" --port n                           - port to listen on (default 8080)");
-        System.err.println(" --stop-port n                      - port to listen for stop command");
-        System.err.println(" --stop-key n                       - security string for stop command (required if --stop-port is present)");
-        System.err.println(" --jar file                         - a jar to be added to the classloader");
-        System.err.println(" --jdbc classname properties jndiname - classname of XADataSource or driver; properties string; name to register in jndi");
-        System.err.println(" --lib dir                          - a directory of jars to be added to the classloader");
-        System.err.println(" --classes dir                      - a directory of classes to be added to the classloader");
-        System.err.println(" --txFile                           - override properties file for Atomikos");
-        System.err.println(" --stats [unsecure|realm.properties] - enable stats gathering servlet context");
-        System.err.println(" --config file                      - a jetty xml config file to use instead of command line options");
-        System.err.println("Context Options:");
-        System.err.println(" --path /path       - context path (default /)");
-        System.err.println(" context            - WAR file, web app dir or context.xml file");
-        System.exit(1);
-    }
+	public
+	void usage(String error)
+	{
+		if (error != null)
+			System.err.println("ERROR: " + error);
+		System.err.println("Usage: java [-DDEBUG] [-Djetty.home=dir] -jar jetty-runner.jar [--help|--version] [ server opts] [[ context opts] context ...] ");
+		System.err.println("Server Options:");
+		System.err.println(" --version                          - display version and exit");
+		System.err.println(" --log file                         - request log filename (with optional 'yyyy_mm_dd' wildcard");
+		System.err.println(" --out file                         - info/warn/debug log filename (with optional 'yyyy_mm_dd' wildcard");
+		System.err.println(" --port n                           - port to listen on (default 8080)");
+		System.err.println(" --stop-port n                      - port to listen for stop command");
+		System.err.println(" --stop-key n                       - security string for stop command (required if --stop-port is present)");
+		System.err.println(" --jar file                         - a jar to be added to the classloader");
+		System.err.println(" --jdbc classname properties jndiname - classname of XADataSource or driver; properties string; name to register in jndi");
+		System.err.println(" --lib dir                          - a directory of jars to be added to the classloader");
+		System.err.println(" --classes dir                      - a directory of classes to be added to the classloader");
+		System.err.println(" --txFile                           - override properties file for Atomikos");
+		System.err.println(" --stats [unsecure|realm.properties] - enable stats gathering servlet context");
+		System.err.println(" --config file                      - a jetty xml config file to use instead of command line options");
+		System.err.println("Context Options:");
+		System.err.println(" --path /path       - context path (default /)");
+		System.err.println(" context            - WAR file, web app dir or context.xml file");
+		System.exit(1);
+	}
 
-    public void configure(String[] args) throws Exception
-    {
-        // handle classpath bits first so we can initialize the log mechanism.
-        for (int i=0;i<args.length;i++)
-        {
-            if ("--version".equals(args[i]))
-            {
+	public
+	void configure(String[] args) throws Exception
+	{
+		// handle classpath bits first so we can initialize the log mechanism.
+		for (int i = 0; i < args.length; i++)
+		{
+			if ("--version".equals(args[i]))
+			{
 
-            }
+			}
 
-            if ("--lib".equals(args[i]))
-            {
-                Resource lib = Resource.newResource(args[++i]);
+			if ("--lib".equals(args[i]))
+			{
+				Resource lib = Resource.newResource(args[++i]);
                 if (!lib.exists() || !lib.isDirectory())
                     usage("No such lib directory "+lib);
                 expandJars(lib);
@@ -284,9 +293,9 @@ public class Runner
                     if (_enableStatsGathering)
                     {
                         //if no stats handler already configured
-                        if (handlers.getChildHandlerByClass(StatisticsHandler.class) == null)
+                        if (handlers.getChildHandlerByClass(StatisticsHandler2.class) == null)
                         {
-                            StatisticsHandler statsHandler = new StatisticsHandler();
+                            StatisticsHandler2 statsHandler = new StatisticsHandler2();
                             prependHandler(statsHandler,handlers);
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
