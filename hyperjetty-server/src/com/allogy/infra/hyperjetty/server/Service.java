@@ -3336,7 +3336,16 @@ public class Service implements Runnable
             int pid=pid(p);
 
             line.append(' ');
-            line.append(String.format("%5d", pid));
+
+			if (pid==-1)
+			{
+				//-blank- is more meaningful than "-1"...
+				line.append("     ");
+			}
+			else
+			{
+				line.append(String.format("%5d", pid));
+			}
 
             ServletMemoryUsage smu=null;
 
