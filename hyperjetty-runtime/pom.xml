@@ -52,6 +52,9 @@
                                 <keep>
                                     <pattern>org.eclipse.jetty.server.Request2</pattern>
                                 </keep>
+								<keep>
+									<pattern>org.eclipse.jetty.server.handler.StatisticsHandler2</pattern>
+								</keep>
                                 <keep>
                                     <pattern>org.newsclub.net.unix.AFUNIXSocketAddress</pattern>
                                 </keep>
