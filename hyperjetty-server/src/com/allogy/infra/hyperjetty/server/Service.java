@@ -3270,10 +3270,11 @@ public class Service implements Runnable
 
             if (filter.version==null && anyVersions)
             {
-                a.append("| Version ");
-                b.append("+---------");
-                //append("| v0.3.31 ");
-                //append("|   N/A   ");
+                a.append("| Version  ");
+                b.append("+----------");
+                //append("| v0.3.31  ");
+                //append("|   N/A    ");
+				//append("| snapshot ");
             }
 
             if (filter.path==null)
@@ -3351,8 +3352,8 @@ public class Service implements Runnable
 
             if (pid<=1)
             {
-                String heap=p.getProperty(HEAP_SIZE.toString(), "N/A");
-                String perm=p.getProperty(PERM_SIZE.toString(), "N/A");
+                String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
+                String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
 
                 line.append(" | STOP |  ");
                 line.append(String.format("%12s", heap));
@@ -3412,12 +3413,25 @@ public class Service implements Runnable
 
             if (filter.version==null && anyVersions)
             {
-                //append("| Version ");
-                //append("+---------");
-                //append("| v0.3.31 ");
-                //append("|   N/A   ");
+				final
+				String versionString=p.getProperty(VERSION.toString(), "");
+
+                //append("| Version  ");
+                //append("+----------");
+                //append("| v0.3.31  ");
+                //append("|   N/A    ");
+				//append("| snapshot ");
                 line.append("| ");
-                line.append(String.format("%-7s", p.getProperty(VERSION.toString(), "")));
+
+				if (versionString.length()<=8)
+				{
+					line.append(String.format("%-8s", versionString));
+				}
+				else
+				{
+					line.append(versionString.substring(0,8));
+				}
+
                 line.append(' ');
             }
 
