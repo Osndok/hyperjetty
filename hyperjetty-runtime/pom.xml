@@ -77,6 +77,10 @@
                                     <pattern>org.eclipse.jetty.server.Request2</pattern>
                                     <result>org.eclipse.jetty.server.Request</result>
                                 </rule>
+								<rule>
+									<pattern>org.eclipse.jetty.server.handler.StatisticsHandler2</pattern>
+									<result>org.eclipse.jetty.server.handler.StatisticsHandler</result>
+								</rule>
                             </rules>
                         </configuration>
                     </execution>

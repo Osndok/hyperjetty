@@ -293,9 +293,9 @@ public class Runner
                     if (_enableStatsGathering)
                     {
                         //if no stats handler already configured
-                        if (handlers.getChildHandlerByClass(StatisticsHandler2.class) == null)
+                        if (handlers.getChildHandlerByClass(StatisticsHandler.class) == null)
                         {
-                            StatisticsHandler2 statsHandler = new StatisticsHandler2();
+                            StatisticsHandler statsHandler = new StatisticsHandler();
                             prependHandler(statsHandler,handlers);
                             ServletContextHandler statsContext = new ServletContextHandler(_contexts, "/stats");
                             StatisticsServlet statisticsServlet = new StatisticsServlet();
