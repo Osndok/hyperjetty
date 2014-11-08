@@ -107,6 +107,7 @@ class TimeDecayingRunningAverage implements RunningAverage
 	}
 
 	/**
+	 * @bug does not update if report stream is idle
 	 * @return
 	 */
 	//@Override

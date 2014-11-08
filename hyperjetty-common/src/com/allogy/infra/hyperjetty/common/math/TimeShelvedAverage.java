@@ -69,7 +69,15 @@ class TimeShelvedAverage
 			//NB: inaccurate, and racy... but we know that we have at least one (that triggered this), and a slow rate (skipped interval)
 			long plusOne=countSinceAlphaTime.getAndSet(incremented);
 
-			runningAverage.report(plusOne-1, alphaTime+period);
+			if (plusOne>0)
+			{
+				runningAverage.report(plusOne - 1, alphaTime + period);
+			}
+			else
+			{
+				//???: does it make since to report zero... the time decay presumes zero when idle, right?
+				runningAverage.report(0, alphaTime + period);
+			}
 
 			alphaTime = now;
 		}
