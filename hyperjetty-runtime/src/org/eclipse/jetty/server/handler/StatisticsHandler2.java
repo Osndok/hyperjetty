@@ -465,10 +465,10 @@ public class StatisticsHandler2 extends HandlerWrapper
 	}
 
 	private final static
-	DecimalFormat twoPlaces = new DecimalFormat("#.##");
+	DecimalFormat twoPlaces = new DecimalFormat("0.00");
 
 	private final static
-	DecimalFormat onePlace = new DecimalFormat("#.#");
+	DecimalFormat onePlace = new DecimalFormat("0.0");
 
 	static
 	{
