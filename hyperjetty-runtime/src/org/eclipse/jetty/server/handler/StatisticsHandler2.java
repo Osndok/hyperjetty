@@ -483,15 +483,10 @@ public class StatisticsHandler2 extends HandlerWrapper
 	private final static
 	DecimalFormat onePlace = new DecimalFormat("0.0");
 
-	//NB: extra space to line up with higher ordinals (with 'k','m' suffixes)
-	private final static
-	DecimalFormat zeroPlaceWithSpace = new DecimalFormat("0 ");
-
 	static
 	{
 		onePlace.setRoundingMode(RoundingMode.DOWN);
 		twoPlaces.setRoundingMode(RoundingMode.DOWN);
-		zeroPlaceWithSpace.setRoundingMode(RoundingMode.DOWN);
 	}
 
 	/**
@@ -524,15 +519,14 @@ public class StatisticsHandler2 extends HandlerWrapper
 			}
 		}
 		else
-		if (rate < 1000)
+		if (rate < 10000)
 		{
-			synchronized (zeroPlaceWithSpace)
-			{
-				return zeroPlaceWithSpace.format(rate);
-			}
+			//"9999" is the max (and most accurate) that will fit in four-character limit, until we need to bring out the suffixes.
+			return Integer.toString((int)rate);
 		}
 		else
 		{
+			//hereafter, we will use three characters for the quantity, and the last/fourth character as an order of magnitude.
 			long k=(long)(rate/1000);
 
 			if (k<1000)
