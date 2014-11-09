@@ -483,10 +483,15 @@ public class StatisticsHandler2 extends HandlerWrapper
 	private final static
 	DecimalFormat onePlace = new DecimalFormat("0.0");
 
+	//NB: extra space to line up with higher ordinals (with 'k','m' suffixes)
+	private final static
+	DecimalFormat zeroPlaceWithSpace = new DecimalFormat("0 ");
+
 	static
 	{
 		onePlace.setRoundingMode(RoundingMode.DOWN);
 		twoPlaces.setRoundingMode(RoundingMode.DOWN);
+		zeroPlaceWithSpace.setRoundingMode(RoundingMode.DOWN);
 	}
 
 	/**
@@ -511,6 +516,11 @@ public class StatisticsHandler2 extends HandlerWrapper
 		if (rate < 100)
 		{
 			return onePlace.format(rate);
+		}
+		else
+		if (rate < 1000)
+		{
+			return zeroPlaceWithSpace.format(rate);
 		}
 		else
 		{
