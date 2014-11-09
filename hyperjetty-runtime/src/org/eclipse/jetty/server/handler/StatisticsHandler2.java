@@ -502,25 +502,34 @@ public class StatisticsHandler2 extends HandlerWrapper
 	{
 		double rate = _requestRate.getValue();
 
-		if (rate < 0)
+		if (rate < 0.00999)
 		{
 			return "0.00";
 		}
 		else
 		if (rate < 10)
 		{
-			//Minimum: "0.00", max: "9.99"
-			return twoPlaces.format(rate);
+			synchronized (twoPlaces)
+			{
+				//Minimum: "0.00", max: "9.99"
+				return twoPlaces.format(rate);
+			}
 		}
 		else
 		if (rate < 100)
 		{
-			return onePlace.format(rate);
+			synchronized (onePlace)
+			{
+				return onePlace.format(rate);
+			}
 		}
 		else
 		if (rate < 1000)
 		{
-			return zeroPlaceWithSpace.format(rate);
+			synchronized (zeroPlaceWithSpace)
+			{
+				return zeroPlaceWithSpace.format(rate);
+			}
 		}
 		else
 		{
