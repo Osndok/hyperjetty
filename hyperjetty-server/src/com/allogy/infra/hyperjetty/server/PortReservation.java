@@ -135,4 +135,75 @@ class PortReservation
             throw new RuntimeException(e);
         }
     }
+
+	/**
+	 * Much like the startingAt() port allocation scheme, except that this one attempts to smear the names across
+	 * the given address space, clumping related application names together.
+	 */
+	public static
+	PortReservation nameCentric(String appName, int servicePort, int jmxPort)
+	{
+		int MAX=Math.max(servicePort,jmxPort)-Math.min(servicePort, jmxPort);
+		int startingPoint=nameHash(appName, MAX);
+
+		if (startingPoint<0 || startingPoint>=MAX)
+		{
+			startingPoint=0;
+		}
+
+		for (int i=startingPoint; i<MAX; i++)
+		{
+			try
+			{
+				PortReservation retval=new PortReservation(servicePort+i, jmxPort+i);
+				return retval;
+			}
+			catch (IOException e)
+			{
+				//expected...
+			}
+		}
+
+		for (int i=0; i<startingPoint; i++)
+		{
+			try
+			{
+				PortReservation retval=new PortReservation(servicePort+i, jmxPort+i);
+				return retval;
+			}
+			catch (IOException e)
+			{
+				//expected...
+			}
+		}
+
+		throw new IllegalStateException("tried all "+MAX+" available ports, could not locate valid pair");
+	}
+
+	/**
+	 * Given an application name, return a semi-consistent hash of that name that will clump like names together
+	 * but generally smear disparate names across the 0-to-max spectrum in a semi-alphabetical ordering ('a'->0,
+	 * 'z'->max).
+	 *
+	 * @param appName
+	 * @param max
+	 * @return
+	 */
+	public static
+	int nameHash(String appName, int max)
+	{
+		int l=appName.length();
+
+		if (l==0) return 0;
+
+		appName=appName.toLowerCase();
+
+		char first=appName.charAt(0);
+		char last=appName.charAt(l-1);
+		char middle=appName.charAt(l/2);
+
+		double scale=(first-'a')/26d + (last-'a')/(26d*26) + (middle-'a')/(26d*26*26);
+
+		return (int)(max*scale);
+	}
 }

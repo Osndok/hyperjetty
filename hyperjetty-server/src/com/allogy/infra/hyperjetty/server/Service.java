@@ -2385,7 +2385,7 @@ public class Service implements Runnable
         log.println("NAME="+name);
         log.println("PATH="+contextPath);
 
-        final PortReservation initialPortReservation;
+        PortReservation initialPortReservation;
         {
 
             if (filter.port!=null)
@@ -2413,7 +2413,15 @@ public class Service implements Runnable
             }
             else
             {
-                initialPortReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+				try
+				{
+					initialPortReservation = PortReservation.nameCentric(name, minimumServicePort, minimumJMXPort);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace(log);
+					initialPortReservation = PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+				}
             }
         }
 
