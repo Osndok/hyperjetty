@@ -1,0 +1,82 @@
+
+h1. Hyperjetty
+
+A lightweight servlet "hypervisor" that makes use of jetty, wherein each java
+servlet is run in it's own process with it's own port with substantially different
+qualities than the conventional servlet container pattern.
+
+
+h2. Indications
+
+* Servlet isolation / compartmentalization - if one servlet consumes all it's available memory, or even brings down the VM, the rest of the servlets are completely unaffected.
+* Automatically core-dumps (then restarts) servlets than run out of memory, so that memory leaks can be determined "at your own pace" with minimal disruption to the servlet/service.
+* Automatically restarts crashed servlets (e.g. due to JVM bugs, or failed native interfaces)
+* Per-servlet statistics such as memory consumption and requests-per-second, can help to isolate/narrow causality of problems to a single servlet
+* Operations-oriented - launch / start / stop servlets at will, from any user on the machine (yet servlets run as their own user)
+* Universal context paths - any servlet can run with any context path, even if another servlet responds on the same path. For example, all your servlets can simply run as the root context ("/").
+* Redundant servlet processes - in some situations it might help to run two of the same servlet, maybe of different versions, maybe even piping only a percentage of traffic onto one of them.
+* Zero-downtime servlet rollover with atomic A/B traffic switching - when replacing a live/production service, you can start a new servlet... *test* it... warm up all the lazyily-loaded java goodness... roll the traffic onto it... and *then* remove the old servlet... lessens the otherwise painful servlet (or container!) reloads to an atomic switchover with the ability to rollback quickly.
+* Low-overhead unix domain sockets - decreases latency and increases throughput when using nginx or service-interdependencies on the same machine
+* Linux process management - you can assign different cpu and io priorities to different servlets
+
+
+h2. Contraindications
+
+* Higher memory footprint - not only is the VM code reduplicated in memory (absent hotspot), but also Jetty and java's built-in minimum memory sizes all serve to make a much higher per-servlet cost memory-wise. If you are interested in maximizing the *number* of servlets you can run on a particular machine/instance, then this is probably *not* for you!
+* Still a bit early/alpha/obscure software
+
+
+h2. Example commands and output
+
+The command syntax is somewhat loose (accepting near-english to terse unix getopt-like parameters), but generally takes the form of:
+<pre>
+hj <command> [tuple arguments] ["except" [contra-filters]] ["where" [filters]]
+</pre>
+
+The following interactions are mocked up (insomuch as the command's output may have been modified), but are typical asto what should be expected:
+
+<pre>
+[user@web3 tmp]# hj launch /path/to/service.war
+10082
+</pre>
+
+<pre>
+[user@web3 tmp]# hj status
+ Port  |  PID  | Life | RPS  |  Heap Usage   | PermGen Usage | Version  | Request Path |     Tags    | Application Name
+-------+-------+------+------+---------------+---------------+----------+--------------+-------------+----------------------
+ 10001 | 22366 | LIVE | 1.04 |   60% of 104m |   34% of 106m | 2.0-SNAP | /assessment  |             | assessment-service
+ 10002 |       | STOP |      |          100m |           70m | 1.x      | /            |             | aws-oracle
+ 10003 |       | STOP |      |           50m |           50m | 0.0      | /            | utility     | debug-servlet
+ 10008 |       | STOP |      |          100m |          100m | snapshot | /            | KEEP        | capillary-livesite
+ 10010 | 21546 | LIVE | 12.6 |   61% of 104m |   23% of 138m | snapshot | /            |             | capillary-livesite
+ 10013 | 13451 | LIVE |  513 |   83% of 104m |   53% of 106m | 0.6.101  | /wui         | production  | capillary-wui
+ 10022 |       | STOP |      |          100m |           70m | 1.9      | /            | v1,producti | couchdb-pager
+ 10023 | 20856 | LIVE |  11k |   45% of 104m |   16% of 106m | 2.1      | /            | v2,producti | couchdb-pager
+ 10022 | 20759 | LIVE |  338 |   36% of  27m |   13% of  85m | 1.2      | /            | v1,producti | geoip
+ 10040 | 20700 | LIVE | 0.01 |   32% of 104m |   11% of 138m | 0.3      | /            | experiment  | isqrl
+ 10073 | 19131 | DEAD |      |           50m |           50m | 0.0      | /            | utility     | oom-servlet
+
+stats matched 10 servlets
+</pre>
+
+<pre>
+[user@web3 /]# hj start path /wui tag backup
+1 servlet started
+
+[user@web3 /]# hj start --path=/wui --tag=backup
+1 servlet already running
+
+[user@web3 /]# hj remove port 10003
+1 servlet removed
+
+[user@web3 /]# hj stop
+stop (or restart) command requires some restrictions or an explicit '--all' flag
+failure
+
+[user@web3 /]# hj stop name my-service except port 10013
+3 servlets stopped
+</pre>
+
+... when in doubt, you can see the scope of (and experiment with) the scope of a command by using the "stats" (or "status")
+verb, and then change the verb to the more destructive operation (start/stop/remove, etc.).
+
