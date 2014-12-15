@@ -1936,7 +1936,16 @@ public class Service implements Runnable
 
         final List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
 
-        int total=0;
+		try
+		{
+			doOrderlyDrain(matchingProperties);
+		}
+		catch (InterruptedException e)
+		{
+			e.printStackTrace(log);
+		}
+
+		int total=0;
         int success=0;
 
         List<String> failures=new ArrayList<String>();
@@ -2036,20 +2045,32 @@ public class Service implements Runnable
 
     private
     void doRemoveCommand(Filter filter, PrintStream out) throws IOException
-    {
+	{
         if (filter.implicitlyMatchesEverything())
         {
             out.println("remove command requires some restrictions or an explicit '--all' flag");
             return;
         }
 
-        int total=0;
+		final
+		List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
+
+		try
+		{
+			doOrderlyDrain(matchingProperties);
+		}
+		catch (InterruptedException e)
+		{
+			e.printStackTrace(log);
+		}
+
+		int total=0;
         int success=0;
 
         //List<String> pidsToWaitFor;
         List<String> failures=new ArrayList<String>();
 
-        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+        for (Properties properties : matchingProperties)
         {
             total++;
             String name=humanReadable(properties);
@@ -2120,7 +2141,145 @@ public class Service implements Runnable
         successOrFailureReport("removed", total, success, failures, out);
     }
 
-    private
+	private
+	void doOrderlyDrain(List<Properties> matchingProperties) throws InterruptedException
+	{
+		//TODO: sort by preferred/specified drain order (which is, service dependency depth)
+
+		Deque<Properties> waiting=new ArrayDeque<Properties>(matchingProperties.size());
+		Deque<Properties> failed=new ArrayDeque<Properties>(matchingProperties.size());
+
+		for (Properties properties : matchingProperties)
+		{
+			switch (sendDrainCommand(properties))
+			{
+				case PASS:
+					break;
+				case FAIL:
+					failed.add(properties);
+					break;
+				case DELAY:
+					waiting.add(properties);
+					break;
+			}
+		}
+
+		final
+		boolean anyProcessingExceptions=!(waiting.isEmpty() && failed.isEmpty());
+
+		int perLoopWaitTime=1500;
+		int waitLimiter=60000/perLoopWaitTime;
+
+		while (!waiting.isEmpty() && waitLimiter>0)
+		{
+			log.println("waiting for "+waiting.size()+" servlets to drain");
+
+			Thread.sleep(perLoopWaitTime);
+			waitLimiter-=perLoopWaitTime;
+
+			//xfer waiting -> reprocess
+			Deque<Properties> reprocess=new ArrayDeque<Properties>(waiting);
+			waiting.clear();
+
+			for (Properties properties : reprocess)
+			{
+				switch (sendDrainCommand(properties))
+				{
+					case PASS:
+						break;
+					case FAIL:
+						failed.add(properties);
+						break;
+					case DELAY:
+						waiting.add(properties);
+						break;
+				}
+			}
+		}
+
+		if (anyProcessingExceptions)
+		{
+			/*
+			Just to be doubly extra sure... drain them all again! Otherwise minute problems
+			from service interdependencies, delayed work queues, and out-of-order draining
+			might cause us to drop something important.
+			 */
+			log.println("calling drain one more time...");
+
+			for (Properties properties : matchingProperties)
+			{
+				switch (sendDrainCommand(properties))
+				{
+					case PASS:
+						break;
+					case FAIL:
+						log.println("unable to drain servlet: "+humanReadable(properties));
+						//TODO: make this state effect the retval of the remove/shutdown commands.
+						//TODO: per-servlet option to allow drain failure to halt remove/shutdown process.
+						break;
+					case DELAY:
+						log.println("ERROR: servlet requests drain-related deferment beyond maximum allowed: "+humanReadable(properties));
+						break;
+				}
+			}
+		}
+		else
+		{
+			log.println("perfect drain?");
+		}
+	}
+
+	private
+	DrainResult sendDrainCommand(Properties properties)
+	{
+		final
+		int pid=pid(properties);
+
+		if (pid<=0)
+		{
+			return DrainResult.PASS;
+		}
+
+		final
+		int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+
+		try
+		{
+			URL url = new URL("http://localhost:"+servicePort+"/lifecycle/drain");
+			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+			connection.setRequestMethod("GET");
+			connection.connect();
+
+			int code = connection.getResponseCode();
+
+			if (code==408)
+			{
+				return DrainResult.DELAY;
+			}
+			else
+			if (code==202)
+			{
+				//200 is returned by some frameworks even if the page does not exist, so 202 makes it a bit more intentional.
+				return DrainResult.PASS;
+			}
+		}
+		catch (MalformedURLException e)
+		{
+			e.printStackTrace();
+		}
+		catch (ProtocolException e)
+		{
+			e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+
+		return DrainResult.FAIL;
+	}
+
+	private
     void doStartCommand(Filter filter, PrintStream out) throws IOException
     {
         if (filter.implicitlyMatchesEverything())
@@ -3673,14 +3832,39 @@ public class Service implements Runnable
 
 		for (File file : files)
 		{
-			if (!file.getName().endsWith(".config"))
+			final
+			String baseName=file.getName();
+
+			if (!baseName.endsWith(".config"))
 			{
 				continue;
 			}
+
 			Properties p = propertiesFromFile(file);
+
 			if (filter.matches(p, servletStateChecker))
 			{
-				retval.add(p);
+				try
+				{
+					final
+					int servicePort=Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
+
+					final
+					String expectedName=servicePort+".config";
+
+					if (!baseName.equals(expectedName))
+					{
+						//TODO: let's extract and use (but still verify) the service port from the filename, therefor supporting a 'rename to move port' or 'forgot to edit file' maintainence workflows.
+						log.println("WARNING: "+file+" is for port "+servicePort+", but is not named: "+expectedName);
+					}
+
+					retval.add(p);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace(log);
+					//TODO: make this effect the overall command exit value, without inhibiting the work that otherwise could be done.
+				}
 			}
 		}
 		return retval;
