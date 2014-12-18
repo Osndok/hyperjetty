@@ -2252,6 +2252,8 @@ public class Service implements Runnable
 
 			int code = connection.getResponseCode();
 
+			log.println("lifecycle/drain status "+code+" @ "+humanReadable(properties));
+
 			if (code==408)
 			{
 				return DrainResult.DELAY;
@@ -2263,17 +2265,15 @@ public class Service implements Runnable
 				return DrainResult.PASS;
 			}
 		}
-		catch (MalformedURLException e)
+		catch (RuntimeException e)
 		{
-			e.printStackTrace();
+			log.println("lifecycle/drain failure-1 @ "+humanReadable(properties));
+			e.printStackTrace(log);
 		}
-		catch (ProtocolException e)
+		catch (Exception e)
 		{
-			e.printStackTrace();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
+			log.println("lifecycle/drain failure-2 @ "+humanReadable(properties));
+			e.printStackTrace(log);
 		}
 
 		return DrainResult.FAIL;
