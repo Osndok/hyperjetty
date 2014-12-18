@@ -2208,6 +2208,8 @@ public class Service implements Runnable
 
 			for (Properties properties : matchingProperties)
 			{
+				Thread.sleep(perLoopWaitTime);
+
 				switch (sendDrainCommand(properties))
 				{
 					case PASS:
