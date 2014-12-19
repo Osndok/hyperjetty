@@ -2256,7 +2256,7 @@ public class Service implements Runnable
 		{
 			URL url = new URL("http://localhost:"+servicePort+contextPath+"/lifecycle/drain");
 			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
-			connection.setRequestMethod("GET");
+			connection.setRequestMethod("POST");
 			connection.connect();
 
 			int code = connection.getResponseCode();
