@@ -2245,9 +2245,16 @@ public class Service implements Runnable
 		final
 		int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
 
+		String contextPath=properties.getProperty(CONTEXT_PATH.toString());
+
+		if (contextPath.equals("/"))
+		{
+			contextPath="";
+		}
+
 		try
 		{
-			URL url = new URL("http://localhost:"+servicePort+"/lifecycle/drain");
+			URL url = new URL("http://localhost:"+servicePort+contextPath+"/lifecycle/drain");
 			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
 			connection.setRequestMethod("GET");
 			connection.connect();
