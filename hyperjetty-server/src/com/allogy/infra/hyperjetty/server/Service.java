@@ -2614,7 +2614,18 @@ public class Service implements Runnable
             {
                 log.println("WARN: port already configured: "+tempServicePort);
 
-                newReservation=PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+				try
+				{
+					//This is expected to "fill in" gaps left by the name-centric initial allocation...
+					newReservation = PortReservation.startingAt(previousReservation.getServicePort(), previousReservation.getServicePort());
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace(log);
+					//...but if it fails, then we will fall back to the original round-robin allocating logic.
+					newReservation = PortReservation.startingAt(minimumServicePort, minimumJMXPort);
+				}
+
                 previousReservation.release();
 
                 tempServicePort=newReservation.getServicePort();
