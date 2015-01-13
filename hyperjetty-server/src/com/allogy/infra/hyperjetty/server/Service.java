@@ -2617,7 +2617,7 @@ public class Service implements Runnable
 				try
 				{
 					//This is expected to "fill in" gaps left by the name-centric initial allocation...
-					newReservation = PortReservation.startingAt(previousReservation.getServicePort(), previousReservation.getServicePort());
+					newReservation = PortReservation.startingAt(previousReservation.getServicePort(), previousReservation.getJmxPort());
 				}
 				catch (Exception e)
 				{
