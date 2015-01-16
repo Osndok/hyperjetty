@@ -64,26 +64,19 @@ class TimeShelvedAverage
 			alphaTime = now;
 		}
 		else
-		if (now > alphaTime + period + period)
-		{
-			//NB: inaccurate, and racy... but we know that we have at least one (that triggered this), and a slow rate (skipped interval)
-			long plusOne=countSinceAlphaTime.getAndSet(incremented);
-
-			if (plusOne>0)
-			{
-				runningAverage.report(plusOne - 1, alphaTime + period);
-			}
-			else
-			{
-				//???: does it make since to report zero... the time decay presumes zero when idle, right?
-				runningAverage.report(0, alphaTime + period);
-			}
-
-			alphaTime = now;
-		}
-		else
 		if (now > alphaTime + period)
 		{
+			int skippedPeriods=(int)Math.min(count, (now-alphaTime)/period-1);
+
+			//Report a zero for any period that we skipped...
+			while (skippedPeriods > 0)
+			{
+				alphaTime+=period;
+				runningAverage.report(0, alphaTime);
+				skippedPeriods--;
+			}
+
+			//NB: period skews relative to the first request when idle.
 			alphaTime = now;
 
 			runningAverage.report(countSinceAlphaTime.getAndSet(0), now);
