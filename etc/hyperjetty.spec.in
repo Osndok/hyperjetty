@@ -129,6 +129,18 @@ EOF
 cp %{SOURCE2} ./etc/init.d/hyperjetty
 chmod 755 ./etc/init.d/hyperjetty
 
+mkdir -p ./etc/logrotate.d
+cat -> ./etc/logrotate.d/hyperjetty <<EOF
+# %{name}.spec
+/var/log/hyperjetty/*.log {
+	copytruncate
+	size 100M
+	rotate 10
+	compress
+	nomail
+}
+EOF
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -154,7 +166,7 @@ getent passwd hyperjetty >/dev/null || \
 /usr/share/java/*.jar
 /etc/init.d/hyperjetty
 #config(noreplace) /etc/sysconfig/hyperjetty
-
+%config /etc/logrotate.d/hyperjetty
 
 %files -n libjunixsockets
 /opt/newsclub/lib-native
