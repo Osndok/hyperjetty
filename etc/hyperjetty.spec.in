@@ -136,9 +136,15 @@ cat -> ./etc/logrotate.d/hyperjetty <<EOF
 	copytruncate
 	size 100M
 	rotate 10
+	missingok
+	dateext
 	compress
-	nomail
+	nosharedscripts
+	prerotate
+		bash -c "[[ ! $1 =~ latest ]]"
+	endscript
 }
+
 EOF
 
 %clean
