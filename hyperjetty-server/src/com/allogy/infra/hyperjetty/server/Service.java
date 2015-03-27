@@ -637,7 +637,30 @@ public class Service implements Runnable
     private
     File warFileForServicePort(int servicePort)
     {
-        return new File(webappDirectory, servicePort+".war");
+		final
+		File exploded=new File(webappDirectory, servicePort+".dir");
+
+		final
+        File warFile=new File(webappDirectory, servicePort+".war");
+
+		if (exploded.isDirectory())
+		{
+			if (warFile.exists())
+			{
+				log.println("WARN: preferring directory: " + exploded);
+			}
+
+			return exploded;
+		}
+		else
+		{
+			if (!warFile.exists())
+			{
+				log.println("WARN: warFile does not exist: "+warFile);
+			}
+
+			return warFile;
+		}
     }
 
     /**
