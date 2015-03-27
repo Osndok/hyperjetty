@@ -700,7 +700,10 @@ public class Service implements Runnable
             siblingDirectory = siblingDirectoryForServicePort(servicePort);
         }
 
-        createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
+		if (!warFile.isDirectory())
+		{
+			createMagicSiblingDirectoryForJetty(warFile, siblingDirectory);
+		}
 
         //NB: by this point, we really need to have NAME set, or else this will fixate 'no-name' within the log base.
 
