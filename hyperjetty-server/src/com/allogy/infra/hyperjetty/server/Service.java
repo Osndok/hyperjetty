@@ -2470,13 +2470,6 @@ public class Service implements Runnable
     }
 
     private
-    void writeProperties(Properties properties) throws IOException
-    {
-        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
-        writeProperties(properties, configFileForServicePort(servicePort));
-    }
-
-    private
     int doKillCommand(Properties properties) throws IOException
     {
         final int pid=pid(properties);
@@ -3177,12 +3170,80 @@ public class Service implements Runnable
         p.setProperty(key.toString(), value);
     }
 
-    private
-    void writeProperties(Properties p, File configFile) throws IOException
+	/**
+	 * Writes the properties file in such a way that if it is interfered with (e.g. a full disk), then a
+	 * valid copy of the properties will still exist. This is a common unix idiom: write & swap. A side
+	 * effect, though, is that we might lose some file attributes (group, mode, xattr).
+	 *
+	 * @param properties
+	 * @throws IOException
+	 */
+	private
+	void writeProperties(Properties properties) throws IOException
+	{
+		final
+		int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+
+		final
+		File destination=configFileForServicePort(servicePort);
+
+		writeProperties(properties, destination);
+	}
+
+	/**
+	 * Writes the properties file in such a way that if it is interfered with (e.g. a full disk), then a
+	 * valid copy of the properties will still exist. This is a common unix idiom: write & swap. A side
+	 * effect, though, is that we might lose some file attributes (group, mode, xattr).
+	 *
+	 * @param p
+	 * @param destination
+	 * @throws IOException
+	 */
+	private
+    void writeProperties(Properties p, File destination) throws IOException
     {
-        FileOutputStream fos=new FileOutputStream(configFile);
-        p.store(fos, "Written by hyperjetty service class");
-        fos.close();
+		final
+		File swapFile=new File(destination.getParent(), destination.getName()+".swp");
+		{
+			final
+			FileOutputStream fos = new FileOutputStream(swapFile);
+
+			p.store(fos, "Written by hyperjetty service class");
+			fos.close();
+		}
+
+		if (swapFile.length()==0)
+		{
+			throw new IOException("written config file is empty!");
+		}
+
+		if (swapFile.renameTo(destination))
+		{
+			log.println("wrote: "+destination);
+		}
+		else
+		{
+			log.println("overwrite by rename does not work?");
+
+			final
+			String date=compact_iso_8601_ish_filename.format(new Date());
+
+			final
+			int randomInt=1000+new Random(System.nanoTime()).nextInt(9000);
+
+			final
+			File step=new File(destination.getParent(), destination.getName()+"."+date+"."+randomInt);
+
+			if (!destination.renameTo(step) || !swapFile.renameTo(destination))
+			{
+				swapFile.renameTo(step);
+				throw new IOException("unable to overwrite config file: " + destination);
+			}
+			else
+			{
+				step.delete();
+			}
+		}
     }
 
     private
