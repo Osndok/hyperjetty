@@ -413,11 +413,32 @@ public class Service implements Runnable
     private
     void maybeNoticeAndReportHeapDump(int servicePort, Properties p, Date noticed, int oldPid)
     {
-        File heapDump=new File(heapDumpPath, "java_pid"+oldPid+".hprof");
-        if (heapDump.canRead())
+		final
+        File original=new File(heapDumpPath, "java_pid"+oldPid+".hprof");
+
+        if (original.canRead())
         {
             String name=p.getProperty(NAME.toString());
             String version=p.getProperty(VERSION.toString());
+
+			//Sweeten the name with some info we have...
+			final
+			File heapDump;
+			{
+				final
+				File newPath=new File(heapDumpPath, name+version+"-pid"+oldPid+".hprof");
+
+				if (original.renameTo(newPath))
+				{
+					heapDump=newPath;
+				}
+				else
+				{
+					log.println("cannot: rename "+original+" -> "+newPath);
+					heapDump=original;
+				}
+			}
+
             log.println("(!): OOM  / "+name+" @ "+version+": "+heapDump);
 
             String dupeSuppressKey="OOM_"+version;
@@ -462,7 +483,7 @@ public class Service implements Runnable
         }
         else
         {
-            log.println("dne: "+heapDump);
+            log.println("dne: "+original);
         }
     }
 
