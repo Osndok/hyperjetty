@@ -793,7 +793,9 @@ public class Request2 implements HttpServletRequest
      */
     public String getPathInfo()
     {
-        return _hj_context_prefix+_pathInfo;
+		//"follows the servlet [context] path, but precedes the query string"
+		//i.e. no _hj_contextPrefix or contextPath
+        return _pathInfo;
     }
 
     /* ------------------------------------------------------------ */
