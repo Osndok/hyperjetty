@@ -1560,7 +1560,19 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
     public void setAsyncSupported(boolean supported)
     {
         _asyncSupported = supported;
-    }
+
+		final
+		String hjContextPath=getHeader("HJ-Context-Path");
+
+		if (hjContextPath!=null)
+		{
+			//kludgy - This takes advantage of the fact that setAsyncSupported(false) is the last thing the servlet holder does before servicing the request.
+			//Otherwise, mucking with the return values for getContextPath(), getRequest*(), and the like, actually interfere with jetty being able to locate the handler.
+
+			//NB: This surly means that (in the present condition) we cannot have Async servlets *AND* HJ-Context-Path handling
+			_hj_context_prefix=hjContextPath;
+		}
+	}
 
     /* ------------------------------------------------------------ */
     /*
@@ -1651,16 +1663,6 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
     public void setAttributes(Attributes attributes)
     {
         _attributes = attributes;
-
-		final
-		String hjContextPath=getHeader("HJ-Context-Path");
-
-		if (hjContextPath!=null)
-		{
-			//kludgy - This takes advantage of the fact that setAttributes() is the last thing called in Dispatch before delegation
-			//Otherwise, mucking with the return values for getContextPath(), getRequest*(), and the like, actually interfere with jetty being able to locate the handler.
-			_hj_context_prefix=hjContextPath;
-		}
     }
 
     /* ------------------------------------------------------------ */
