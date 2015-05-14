@@ -130,7 +130,7 @@ cp %{SOURCE2} ./etc/init.d/hyperjetty
 chmod 755 ./etc/init.d/hyperjetty
 
 mkdir -p ./etc/logrotate.d
-cat -> ./etc/logrotate.d/hyperjetty <<EOF
+cat -> ./etc/logrotate.d/hyperjetty <<"EOF"
 # %{name}.spec
 /var/log/hyperjetty/*.log {
 	copytruncate
