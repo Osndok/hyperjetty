@@ -3414,7 +3414,7 @@ public class Service implements Runnable
                 try {
                     argument=i.next();
                 } catch (NoSuchElementException e) {
-                    throw new IllegalArgumentException(flag+" requires one argument", e);
+                    throw new IllegalArgumentException(flag+" requires one argument, or is an argument with a missing flag (e.g. maybe 'port' or 'name' should come before it)", e);
                 }
                 if (argument.length()==0)
                 {
