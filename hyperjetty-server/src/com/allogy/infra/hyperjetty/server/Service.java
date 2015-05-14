@@ -2780,12 +2780,21 @@ public class Service implements Runnable
 
         Properties p=null;
 
-        try {
-            p= getEmbeddedAppProperties(warFile);
-        } catch (Exception e) {
+		try
+		{
+			p = getEmbeddedAppProperties(warFile);
+		}
+		catch (Exception e)
+		{
             log.println("Unable to read properties from war file");
             e.printStackTrace();
         }
+
+		if (p==null)
+		{
+			//No 'app.properties'... that's okay.
+			p=new Properties();
+		}
 
         if (nameIsGuessed)
         {
