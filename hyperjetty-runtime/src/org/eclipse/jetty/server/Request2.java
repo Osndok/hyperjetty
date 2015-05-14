@@ -139,7 +139,7 @@ public class Request2 implements HttpServletRequest
     private ContextHandler.Context _context;
     private boolean _newContext;
     private String _contextPath;
-	private String _hj_context_prefix;
+	private String _hj_context_prefix="";
     private CookieCutter _cookies;
     private boolean _cookiesExtracted = false;
     private DispatcherType _dispatcherType;
