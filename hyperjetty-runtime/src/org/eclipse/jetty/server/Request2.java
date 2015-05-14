@@ -498,7 +498,17 @@ public class Request2 implements HttpServletRequest
      */
     public String getContextPath()
     {
-        return _contextPath;
+		final
+		String override=getHeader("HJ-Context-Path");
+
+		if (override==null)
+		{
+			return _contextPath;
+		}
+		else
+		{
+			return override;
+		}
     }
 
     /* ------------------------------------------------------------ */
