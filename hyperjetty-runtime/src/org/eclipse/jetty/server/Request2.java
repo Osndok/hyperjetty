@@ -139,7 +139,7 @@ public class Request2 implements HttpServletRequest
     private ContextHandler.Context _context;
     private boolean _newContext;
     private String _contextPath;
-	private String _hj_context_path;
+	private String _hj_context_prefix;
     private CookieCutter _cookies;
     private boolean _cookiesExtracted = false;
     private DispatcherType _dispatcherType;
@@ -499,14 +499,7 @@ public class Request2 implements HttpServletRequest
      */
     public String getContextPath()
     {
-		if (_hj_context_path==null || _hj_context_path.isEmpty())
-		{
-			return _contextPath;
-		}
-		else
-		{
-			return _hj_context_path;
-		}
+		return _hj_context_prefix+_contextPath;
     }
 
     /* ------------------------------------------------------------ */
@@ -800,7 +793,7 @@ public class Request2 implements HttpServletRequest
      */
     public String getPathInfo()
     {
-        return _hj_context_path+_pathInfo;
+        return _hj_context_prefix+_pathInfo;
     }
 
     /* ------------------------------------------------------------ */
@@ -979,7 +972,7 @@ public class Request2 implements HttpServletRequest
     {
         if (_requestURI == null && _uri != null)
             _requestURI = _uri.getPathAndParam();
-        return _hj_context_path+_requestURI;
+        return _hj_context_prefix+_requestURI;
     }
 
     /* ------------------------------------------------------------ */
@@ -1483,7 +1476,7 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
             _attributes.clearAttributes();
         _characterEncoding = null;
         _contextPath = null;
-		_hj_context_path = null;
+		_hj_context_prefix = "";
         if (_cookies != null)
             _cookies.reset();
         _cookiesExtracted = false;
@@ -1658,6 +1651,16 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
     public void setAttributes(Attributes attributes)
     {
         _attributes = attributes;
+
+		final
+		String hjContextPath=getHeader("HJ-Context-Path");
+
+		if (hjContextPath!=null)
+		{
+			//kludgy - This takes advantage of the fact that setAttributes() is the last thing called in Dispatch before delegation
+			//Otherwise, mucking with the return values for getContextPath(), getRequest*(), and the like, actually interfere with jetty being able to locate the handler.
+			_hj_context_prefix=hjContextPath;
+		}
     }
 
     /* ------------------------------------------------------------ */
@@ -1753,18 +1756,6 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
      */
     public void setContextPath(String contextPath)
     {
-		final
-		String hjContextPath=getHeader("HJ-Context-Path");
-
-		if (hjContextPath==null)
-		{
-			_hj_context_path="";
-		}
-		else
-		{
-			_hj_context_path=hjContextPath;
-		}
-
         _contextPath = contextPath;
     }
 
