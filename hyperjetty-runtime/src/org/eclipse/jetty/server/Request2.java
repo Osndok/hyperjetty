@@ -139,6 +139,7 @@ public class Request2 implements HttpServletRequest
     private ContextHandler.Context _context;
     private boolean _newContext;
     private String _contextPath;
+	private String _hj_context_path;
     private CookieCutter _cookies;
     private boolean _cookiesExtracted = false;
     private DispatcherType _dispatcherType;
@@ -498,16 +499,13 @@ public class Request2 implements HttpServletRequest
      */
     public String getContextPath()
     {
-		final
-		String override=getHeader("HJ-Context-Path");
-
-		if (override==null)
+		if (_hj_context_path==null || _hj_context_path.isEmpty())
 		{
 			return _contextPath;
 		}
 		else
 		{
-			return override;
+			return _hj_context_path;
 		}
     }
 
@@ -802,7 +800,7 @@ public class Request2 implements HttpServletRequest
      */
     public String getPathInfo()
     {
-        return _pathInfo;
+        return _hj_context_path+_pathInfo;
     }
 
     /* ------------------------------------------------------------ */
@@ -981,7 +979,7 @@ public class Request2 implements HttpServletRequest
     {
         if (_requestURI == null && _uri != null)
             _requestURI = _uri.getPathAndParam();
-        return _requestURI;
+        return _hj_context_path+_requestURI;
     }
 
     /* ------------------------------------------------------------ */
@@ -991,7 +989,9 @@ public class Request2 implements HttpServletRequest
     public StringBuffer getRequestURL()
     {
         final StringBuffer url = new StringBuffer(48);
-        synchronized (url)
+
+		//2015-05-14 - REH - Why synchronized here? This makes no sense. Maybe 'url' was an object field at one time?
+        //synchronized (url)
         {
             String scheme = getScheme();
             int port = getServerPort();
@@ -1483,6 +1483,7 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
             _attributes.clearAttributes();
         _characterEncoding = null;
         _contextPath = null;
+		_hj_context_path = null;
         if (_cookies != null)
             _cookies.reset();
         _cookiesExtracted = false;
@@ -1752,6 +1753,18 @@ loop: for (int i = hostPort.putIndex(); i-- > hostPort.getIndex();)
      */
     public void setContextPath(String contextPath)
     {
+		final
+		String hjContextPath=getHeader("HJ-Context-Path");
+
+		if (hjContextPath==null)
+		{
+			_hj_context_path="";
+		}
+		else
+		{
+			_hj_context_path=hjContextPath;
+		}
+
         _contextPath = contextPath;
     }
 
