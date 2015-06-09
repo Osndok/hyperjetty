@@ -3549,6 +3549,7 @@ public class Service implements Runnable
 
         boolean anyVersions=anyPropertyHas(matchingProperties, VERSION);
         boolean anyTags    =anyPropertyHas(matchingProperties, TAGS);
+		boolean anyRespawns=anyPropertyHas(matchingProperties, RESPAWN_COUNT);
 
         if (true)
         { //scope for A & B
@@ -3573,6 +3574,15 @@ public class Service implements Runnable
             //append(" 12333 | DEAD |  10k |   10% of   3g |   10% of   9m ");
             //append("    -1 | STOP | 999  |    - N/A -    |    - N/A -    ");
 			//append(" 12333 | DEAD | 0.03 |   10% of   3g |   10% of   9m ");
+
+			if (anyRespawns)
+			{
+				a.append("| Death ");
+				b.append("+-------");
+				//append("|  9999 ");
+				//append("|       ");
+				//append("|   10k ");
+			}
 
             if (filter.version==null && anyVersions)
             {
@@ -3719,7 +3729,40 @@ public class Service implements Runnable
                 line.append(" ");
             }
 
-            if (filter.version==null && anyVersions)
+			if (anyRespawns)
+			{
+				//append("| Death ");
+				//append("+-------");
+				//append("|  9999 ");
+				//append("| 1,234 ");
+				//append("| 99999 ");
+				//append("|       ");
+				//append("|   10k ");
+				final
+				String integerString=p.getProperty(RESPAWN_COUNT.toString());
+
+				if (integerString==null)
+				{
+					line.append("|       ");
+				}
+				else
+				{
+					final
+					int i=Integer.parseInt(integerString);
+
+					if (i>9999)
+					{
+						line.append(String.format("| %4sk ", i/1000));
+					}
+					else
+					{
+						line.append(String.format("| %5s ", integerString));
+					}
+
+				}
+			}
+
+			if (filter.version==null && anyVersions)
             {
 				final
 				String versionString=p.getProperty(VERSION.toString(), "");
