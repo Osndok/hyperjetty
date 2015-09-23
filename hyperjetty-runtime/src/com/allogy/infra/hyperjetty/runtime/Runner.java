@@ -880,8 +880,12 @@ public class Runner
     }
 
 
-    public static void main(String[] args)
+    public static
+	void main(String[] args)
     {
+		reportJavaSystemProperties();
+
+		final
         Runner runner = new Runner();
 
         try
@@ -906,5 +910,24 @@ public class Runner
             runner.usage(null);
         }
     }
+
+	/**
+	 * Usually contains nice debugging information, such as the java version, platform, etc.
+	 */
+	private static
+	void reportJavaSystemProperties()
+	{
+		final
+		Properties p=System.getProperties();
+
+		for (String key : p.stringPropertyNames())
+		{
+			final
+			String value=p.getProperty(key);
+
+			System.err.println(key+" = "+value);
+		}
+	}
+
 }
 
