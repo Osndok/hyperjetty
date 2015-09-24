@@ -4,6 +4,15 @@ import com.allogy.infra.hyperjetty.common.Config;
 import com.allogy.infra.hyperjetty.common.ProcessUtils;
 import com.allogy.infra.hyperjetty.common.ServletName;
 import com.allogy.infra.hyperjetty.common.ServletProp;
+import com.allogy.infra.hyperjetty.server.commands.DumpLogFileErrors;
+import com.allogy.infra.hyperjetty.server.commands.DumpLogFileNames;
+import com.allogy.infra.hyperjetty.server.commands.DumpProperties;
+import com.allogy.infra.hyperjetty.server.commands.DumpServletStatus;
+import com.allogy.infra.hyperjetty.server.commands.DumpSpecificKey;
+import com.allogy.infra.hyperjetty.server.commands.NginxRoutingTable;
+import com.allogy.infra.hyperjetty.server.commands.PrintAvailableCommands;
+import com.allogy.infra.hyperjetty.server.commands.StackTrace;
+import com.allogy.infra.hyperjetty.server.internal.JMXUtils;
 
 import javax.management.*;
 import javax.xml.bind.DatatypeConverter;
@@ -42,7 +51,8 @@ import static com.allogy.infra.hyperjetty.common.ServletProp.WITHOUT;
  * Date: 2013/05/13
  * Time: 12:55 PM
  */
-public class Service implements Runnable
+public
+class Service implements Runnable, CommandUtilities
 {
 
     private static final String SERVLET_STOPPED_PID = "-1";
@@ -643,7 +653,7 @@ public class Service implements Runnable
     }
     */
 
-    private
+    public
     File configFileForServicePort(int servicePort)
     {
         return new File(etcDirectory, servicePort+".config");
@@ -655,7 +665,7 @@ public class Service implements Runnable
      * @param servicePort
      * @return
      */
-    private
+    public
     File warFileForServicePort(int servicePort)
     {
 		final
@@ -1147,7 +1157,7 @@ public class Service implements Runnable
         return sb.toString();
     }
 
-    private
+    public
     String getContextPath(Properties p)
     {
         String path=p.getProperty(CONTEXT_PATH.toString());
@@ -1207,7 +1217,7 @@ public class Service implements Runnable
      * @param forStartup
      * @return
      */
-    private
+    public
     String logFileBaseFromProperties(Properties p, boolean forStartup)
     {
         if (forStartup)
@@ -1292,7 +1302,7 @@ public class Service implements Runnable
     {
         String appName=p.getProperty(NAME.toString(), "no-name");
         String portNumber=p.getProperty(SERVICE_PORT.toString(), "no-port");
-        String basename=niceFileCharactersOnly(appName+"-"+portNumber);
+        String basename=niceFileCharactersOnly(appName + "-" + portNumber);
 
         return new File(logDirectory, basename).toString();
     }
@@ -1323,14 +1333,14 @@ public class Service implements Runnable
         return sb.toString();
     }
 
-    private
+    public
     boolean isRunning(Properties properties)
     {
         int pid=pid(properties);
         return ProcessUtils.isRunning(pid);
     }
 
-    private
+    public
     int pid(Properties properties)
     {
         String pid = properties.getProperty("PID");
@@ -1344,644 +1354,373 @@ public class Service implements Runnable
         return Integer.parseInt(pid);
     }
 
-    private
-    void processClientSocketCommand(InputStream inputStream, OutputStream outputStream) throws IOException
-    {
-        logDate();
-        log.println("Got client connection");
+	private static final
+	Map<String, Command> primaryCommands = new HashMap<String, Command>();
 
-        final PrintStream out=new PrintStream(outputStream);
-        ObjectInputStream in=new ObjectInputStream(inputStream);
+	private static final
+	Map<String, Command> secondaryCommands = new HashMap<String, Command>();
 
-        int numArgs=in.readInt();
-        List<String> args=new ArrayList(numArgs);
+	static
+	{
+		Command c;
 
-        //The first arg is the command
-        String command=in.readUTF();
+		c=new DumpLogFileNames(true);
+		{
+			primaryCommands.put("access", c);
+			secondaryCommands.put("access-log", c);
+			secondaryCommands.put("accesslog", c);
+		}
 
-        log.print("* command: ");
-        log.print(command);
+		c=new DumpLogFileNames(false);
+		{
+			primaryCommands.put("log", c);
+			secondaryCommands.put("app-log", c);
+			secondaryCommands.put("applog", c);
+		}
 
-        for (int i=1; i<numArgs; i++)
-        {
-            String arg=in.readUTF();
-            args.add(arg);
-            log.print(' ');
-            log.print(arg);
-        }
-        log.println();
+		c=new DumpProperties();
+		{
+			primaryCommands.put("props", c);
+			secondaryCommands.put("dump", c);
+		}
 
-        int numFiles=in.readInt();
+		c=new StackTrace();
+		{
+			primaryCommands.put("stack", c);
+			secondaryCommands.put("dump2", c);
+			secondaryCommands.put("trace", c);
+			secondaryCommands.put("stacktrace", c);
+			secondaryCommands.put("stack-trace", c);
+		}
 
-        if (numFiles>0)
-        {
-            log.println(numFiles+" file(s) coming with "+command+" command");
-        }
+		c=new DumpSpecificKey(PID);
+		{
+			primaryCommands.put("pid", c);
+			secondaryCommands.put("pids", c);
+			secondaryCommands.put("ls-pid", c);
+			secondaryCommands.put("lspid", c);
+		}
 
-        // ------------------------------------------- CLIENT COMMANDS --------------------------------------------
+		c=new DumpSpecificKey(SERVICE_PORT);
+		{
+			primaryCommands.put("port", c);
+			secondaryCommands.put("ports", c);
+			secondaryCommands.put("ls-port", c);
+			secondaryCommands.put("lsport", c);
+		}
 
-        if (command.startsWith("access-log"))
-        {
-            dumpLogFileNames(getFilter(args), out, ".access");
-        }
-        else if (command.equals("dump") || command.equals("props"))
-        {
-            dumpPropertiesOfOneMatchingServlet(getFilter(args), out);
-        }
-        else if (command.equals("dump2") || command.equals("trace"))
-        {
-            sendKillQuitSignalTo(getFilter(args), out);
-        }
-        else if (command.equals("restart"))
-        {
-            doStopCommand(getFilter(args), out, true);
-        }
-        else if (command.equals("launch"))
-        {
-            doLaunchCommand(args, in, out, numFiles);
-        }
-        else if (command.startsWith("log"))
-        {
-            dumpLogFileNames(getFilter(args), out, ".log");
-        }
-        else if (command.equals("errors"))
-        {
-            dumpLogFileErrors(getFilter(args), out);
-        }
-        else if (command.startsWith("ls-pid"))
-        {
-            dumpSpecificKey(getFilter(args), out, PID);
-        }
-        else if (command.startsWith("ls-port"))
-        {
-            dumpSpecificKey(getFilter(args), out, SERVICE_PORT);
-        }
-        else if (command.startsWith("ls-jmx"))
-        {
-            dumpSpecificKey(getFilter(args), out, JMX_PORT);
-        }
-        else if (command.startsWith("ls-tag"))
-        {
-            dumpUniqueMultiKey(getFilter(args), out, TAGS);
-        }
-        else if (command.startsWith("ls-version"))
-        {
-            dumpSpecificKey(getFilter(args), out, VERSION);
-        }
-        else if (command.equals("nginx-routing"))
-        {
-            dumpNginxRoutingTable(getFilter(args), out);
-        }
-        else if (command.equals("ping"))
-        {
-            out.print("GOOD\npong\n");
-        }
-        else if (command.equals("remove"))
-        {
-            doRemoveCommand(getFilter(args), out);
-        }
-        else if (command.equals("start"))
-        {
-            doStartCommand(getFilter(args), out);
-        }
-        else if (command.equals("set"))
-        {
-            doSetCommand(getFilter(args), out);
-        }
-        else if (command.equals("stop"))
-        {
-            doStopCommand(getFilter(args), out, false);
-        }
-        else if (command.equals("kill"))
-        {
-            doKillCommand(getFilter(args), out);
-        }
-        else if (command.startsWith("stat")) //"status", "stats", "statistics", or even "stat" (like the unix function)
-        {
-            doStatsCommand(getFilter(args), out);
-        }
-        else
-        {
-            String message="Unknown command: "+command;
-            out.println(message);
-            log.println(message);
-        }
-        // ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
-    }
+		c=new DumpSpecificKey(JMX_PORT);
+		{
+			primaryCommands.put("jmx", c);
+			secondaryCommands.put("jmxports", c);
+			secondaryCommands.put("jmx-port", c);
+			secondaryCommands.put("lsjmx", c);
+		}
 
-    private
-    void sendKillQuitSignalTo(Filter filter, PrintStream out) throws IOException
-    {
-        int total=0;
-        int success=0;
+		c=new DumpSpecificKey(TAGS);
+		{
+			primaryCommands.put("tags", c);
+			secondaryCommands.put("tag", c);
+			secondaryCommands.put("ls-tag", c);
+			secondaryCommands.put("lstag", c);
+		}
 
-        List<String> failures=new ArrayList<String>();
+		c=new DumpSpecificKey(VERSION);
+		{
+			primaryCommands.put("versions", c);
+			secondaryCommands.put("lsversion", c);
+			secondaryCommands.put("ls-version", c);
+		}
 
-        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
-        {
-            total++;
-            String name=humanReadable(properties);
+		c=new NginxRoutingTable();
+		{
+			primaryCommands.put("nginx", c);
+		}
 
-            try {
-                int pid=Integer.parseInt(properties.getProperty(PID.toString()));
-                log.println("dump-trace: "+name+" (pid="+pid+")");
+		c=new DumpLogFileErrors();
+		{
+			primaryCommands.put("errors", c);
+		}
 
-                Process process = Runtime.getRuntime().exec("kill -QUIT " + pid);
+		c=new PrintAvailableCommands(primaryCommands);
+		{
+			primaryCommands.put("help", c);
+			secondaryCommands.put("usage", c);
+		}
 
-                process.waitFor();
-                int status=process.exitValue();
-                if (status==0)
-                {
-                    success++;
-                }
-                else
-                {
-                    String message="failed to send trace '"+name+"': kill exit status "+status;
-                    failures.add(message);
-                    log.println(message);
-                }
-            }
-            catch (Throwable t)
-            {
-                t.printStackTrace();
-                String message="failed to send trace '"+name+"': "+t.toString();
-                failures.add(message);
-                log.println(message);
-            }
-        }
+		c=new DumpServletStatus();
+		{
+			primaryCommands.put("status", c);
+			secondaryCommands.put("stat", c);
+			secondaryCommands.put("stats", c);
+			secondaryCommands.put("state", c);
+			secondaryCommands.put("show", c);
+		}
+	}
 
-        successOrFailureReport("traced", total, success, failures, out);
-    }
+	private
+	void processClientSocketCommand(InputStream inputStream, OutputStream outputStream) throws IOException
+	{
+		logDate();
+		log.println("Got client connection");
 
+		final PrintStream out = new PrintStream(outputStream);
+		ObjectInputStream in = new ObjectInputStream(inputStream);
 
-    private
-    void dumpPropertiesOfOneMatchingServlet(Filter filter, PrintStream out) throws IOException
-    {
-        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+		int numArgs = in.readInt();
+		List<String> args = new ArrayList(numArgs);
 
-        if (matches.size()!=1)
-        {
-            out.println("expecting precisely one servlet match, found "+matches.size());
-            return;
-        }
+		//The first arg is the command
+		String command = in.readUTF();
 
-        out.println("GOOD");
+		log.print("* command: ");
+		log.print(command);
 
-        Properties properties=matches.get(0);
+		command=command.toLowerCase();
 
-        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+		for (int i = 1; i < numArgs; i++)
+		{
+			String arg = in.readUTF();
+			args.add(arg);
+			log.print(' ');
+			log.print(arg);
+		}
+		log.println();
 
-        properties.store(out, null);
+		int numFiles = in.readInt();
 
-        String logBase = logFileBaseFromProperties(properties, false);
-        out.println("LOG="+logBase+".log");
-        out.println("ACCESS_LOG="+logBase+".access");
-        out.println("CONFIG_FILE="+configFileForServicePort(servicePort));
-        out.println("WAR_FILE="+warFileForServicePort(servicePort));
+		if (numFiles > 0)
+		{
+			log.println(numFiles + " file(s) coming with " + command + " command");
+		}
 
-        int pid=pid(properties);
-        //NB: PID is already in the printed (as it's in the file)... we only need to output generated or derived data.
-        //out.println("PID="+pid);
+		// ------------------------------------------- CLIENT COMMANDS --------------------------------------------
 
-        if (pid<=1)
-        {
-            out.println("STATE=Stopped");
-        }
-        else if (isRunning(properties))
-        {
-            out.println("STATE=Alive");
-        }
-        else
-        {
-            out.println("STATE=Dead");
-        }
+		Command generic=primaryCommands.get(command);
 
-        String host=filter.getOption("host", "localhost");
-        String protocol=filter.getOption("protocol", "http");
-        String path=getContextPath(properties);
+		if (generic==null)
+		{
+			generic=secondaryCommands.get(command);
+		}
 
-        out.println("URL="+protocol+"://"+host+":"+servicePort+path);
-    }
+		if (generic!=null)
+		{
+			final
+			Filter filter=getFilter(args);
 
-    private
-    void dumpUniqueMultiKey(Filter filter, PrintStream out, ServletProp key) throws IOException
-    {
-        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+			final
+			List<Properties> matching = propertiesFromMatchingConfigFiles(filter);
 
-        if (matches.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
+			generic.execute(filter, matching, this, out);
+		}
+		else if (command.equals("restart"))
+		{
+			doStopCommand(getFilter(args), out, true);
+		}
+		else if (command.equals("launch"))
+		{
+			doLaunchCommand(args, in, out, numFiles);
+		}
+		else if (command.equals("ping"))
+		{
+			out.print("GOOD\npong\n");
+		}
+		else if (command.equals("remove"))
+		{
+			doRemoveCommand(getFilter(args), out);
+		}
+		else if (command.equals("start"))
+		{
+			doStartCommand(getFilter(args), out);
+		}
+		else if (command.equals("set"))
+		{
+			doSetCommand(getFilter(args), out);
+		}
+		else if (command.equals("stop"))
+		{
+			doStopCommand(getFilter(args), out, false);
+		}
+		else if (command.equals("kill"))
+		{
+			doKillCommand(getFilter(args), out);
+		}
+		else
+		{
+			String message = "Unknown command: " + command;
+			out.println(message);
+			log.println(message);
+		}
+		// ------------------------------------------- END CLIENT COMMANDS --------------------------------------------
+	}
 
-        String keyString=key.toString();
-        Set<String> values=new HashSet<String>();
+	private
+	void dumpUniqueMultiKey(Filter filter, PrintStream out, ServletProp key) throws IOException
+	{
+		List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
 
-        for (Properties properties : matches)
-        {
-            String value=properties.getProperty(keyString);
-            if (value!=null)
-            {
-                if (value.indexOf(',')>=0)
-                {
-                    String[] multi=value.split(",");
-                    for (String s : multi) {
-                        values.add(s);
-                    }
+		if (matches.isEmpty())
+		{
+			String message = "no matching servlets";
+			out.println(message);
+			log.println(message);
+			return;
+		}
 
-                }
-                else
-                {
-                    values.add(value);
-                }
-            }
-        }
+		String keyString = key.toString();
+		Set<String> values = new HashSet<String>();
 
-        out.println("GOOD");
+		for (Properties properties : matches)
+		{
+			String value = properties.getProperty(keyString);
+			if (value != null)
+			{
+				if (value.indexOf(',') >= 0)
+				{
+					String[] multi = value.split(",");
+					for (String s : multi)
+					{
+						values.add(s);
+					}
 
-        for (String s : values)
-        {
-            out.println(s);
-        }
+				}
+				else
+				{
+					values.add(value);
+				}
+			}
+		}
 
-    }
+		out.println("GOOD");
 
-    private
-    void dumpSpecificKey(Filter filter, PrintStream out, ServletProp key) throws IOException
-    {
-        List<Properties> matches = propertiesFromMatchingConfigFiles(filter);
+		for (String s : values)
+		{
+			out.println(s);
+		}
 
-        if (matches.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
+	}
 
-        String keyString=key.toString();
+	private
+	void doSetCommand(Filter matchingFilter, PrintStream out) throws IOException
+	{
+		Filter setFilter = matchingFilter.kludgeSetFilter;
 
-        out.println("GOOD");
+		if (setFilter == null || matchingFilter.implicitlyMatchesEverything())
+		{
+			throw new UnsupportedOperationException("missing (or empty) where clause");
+		}
 
-        for (Properties p : matches)
-        {
-            String value=p.getProperty(keyString);
-            if (value!=null)
-            {
-                out.println(value);
-            }
-        }
+		if (setFilter.implicitlyMatchesEverything())
+		{
+			throw new UnsupportedOperationException("missing (or empty) set clause");
+		}
 
-    }
+		List<Properties> matches = propertiesFromMatchingConfigFiles(matchingFilter);
 
-    private void doSetCommand(Filter matchingFilter, PrintStream out) throws IOException
-    {
-        Filter setFilter=matchingFilter.kludgeSetFilter;
+		if (matches.isEmpty())
+		{
+			String message = "no matching servlets";
+			out.println(message);
+			log.println(message);
+			return;
+		}
 
-        if (setFilter==null || matchingFilter.implicitlyMatchesEverything())
-        {
-            throw new UnsupportedOperationException("missing (or empty) where clause");
-        }
+		int total = matches.size();
 
-        if (setFilter.implicitlyMatchesEverything())
-        {
-            throw new UnsupportedOperationException("missing (or empty) set clause");
-        }
+		if (setFilter.setCanOnlyBeAppliedToOnlyOneServlet() && total > 1)
+		{
+			throw new UnsupportedOperationException("requested set operation can only be applied to one servlet, but " + total + " matched");
+		}
 
-        List<Properties> matches = propertiesFromMatchingConfigFiles(matchingFilter);
+		int success = 0;
+		List<String> failures = new ArrayList<String>();
 
-        if (matches.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
+		for (Properties properties : matches)
+		{
+			String name = humanReadable(properties);
+			try
+			{
+				doSetCommand(properties, setFilter);
+				success++;
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = "cant actuate set command for " + name + ": " + t.toString();
+				log.println(message);
+				failures.add(message);
+			}
+		}
 
-        int total=matches.size();
+		successOrFailureReport("reconfigured", total, success, failures, out);
+	}
 
-        if (setFilter.setCanOnlyBeAppliedToOnlyOneServlet() && total > 1)
-        {
-            throw new UnsupportedOperationException("requested set operation can only be applied to one servlet, but "+total+" matched");
-        }
+	private
+	void doSetCommand(Properties newProperties, Filter setFilter) throws MalformedObjectNameException,
+																			 IntrospectionException, InstanceNotFoundException, IOException, ReflectionException,
+																			 AttributeNotFoundException, MBeanException, InterruptedException
+	{
+		Properties oldProperties = (Properties) newProperties.clone();
+		setFilter.applySetOperationTo(newProperties);
 
-        int success=0;
-        List<String> failures=new ArrayList<String>();
-
-        for (Properties properties : matches)
-        {
-            String name=humanReadable(properties);
-            try {
-                doSetCommand(properties, setFilter);
-                success++;
-            }
-            catch (Throwable t)
-            {
-                t.printStackTrace();
-                String message="cant actuate set command for "+name+": "+t.toString();
-                log.println(message);
-                failures.add(message);
-            }
-        }
-
-        successOrFailureReport("reconfigured", total, success, failures, out);
-    }
-
-    private
-    void doSetCommand(Properties newProperties, Filter setFilter) throws MalformedObjectNameException,
-            IntrospectionException, InstanceNotFoundException, IOException, ReflectionException,
-            AttributeNotFoundException, MBeanException, InterruptedException
-    {
-        Properties oldProperties = (Properties) newProperties.clone();
-        setFilter.applySetOperationTo(newProperties);
-
-        if (setFilter.port!=null)
-        {
+		if (setFilter.port != null)
+		{
             /*
             Restart the world... technically an edge case (b/c we use the service port as a primary key),
             yet oddly simpler.
              */
-            int oldServicePort= Integer.parseInt(oldProperties.getProperty(SERVICE_PORT.toString()));
-            int newServicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+			int oldServicePort = Integer.parseInt(oldProperties.getProperty(SERVICE_PORT.toString()));
+			int newServicePort = Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
 
-            log.println("warn: changing primary port: "+oldServicePort+" -> "+newServicePort);
-            if (isRunning(oldProperties))
-            {
-                doStopCommand(oldProperties);
-                warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
-                //configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
-                writeProperties(newProperties, configFileForServicePort(newServicePort));
-                configFileForServicePort(oldServicePort).delete();
-                //Thread.sleep(RESTART_DELAY_MS); was this sleep needed for something???
-                actuallyLaunchServlet(newServicePort);
-            }
-            else
-            {
-                log.println("servlet was not running, so it will not be running afterwards either");
-                warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
-                //configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
-                writeProperties(newProperties, configFileForServicePort(newServicePort));
-                configFileForServicePort(oldServicePort).delete();
-            }
+			log.println("warn: changing primary port: " + oldServicePort + " -> " + newServicePort);
+			if (isRunning(oldProperties))
+			{
+				doStopCommand(oldProperties);
+				warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
+				//configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
+				writeProperties(newProperties, configFileForServicePort(newServicePort));
+				configFileForServicePort(oldServicePort).delete();
+				//Thread.sleep(RESTART_DELAY_MS); was this sleep needed for something???
+				actuallyLaunchServlet(newServicePort);
+			}
+			else
+			{
+				log.println("servlet was not running, so it will not be running afterwards either");
+				warFileForServicePort(oldServicePort).renameTo(warFileForServicePort(newServicePort));
+				//configFileForServicePort(oldServicePort).renameTo(configFileForServicePort(newServicePort));
+				writeProperties(newProperties, configFileForServicePort(newServicePort));
+				configFileForServicePort(oldServicePort).delete();
+			}
 
-        }
-        else if (setFilter.setRequiresServletRestart() && isRunning(oldProperties))
-        {
-            log.println("servlet restart required");
-            int servicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
-            doStopCommand(oldProperties);
-            waitForProcessToTerminate(oldProperties);
-            writeProperties(newProperties, configFileForServicePort(servicePort));
-            actuallyLaunchServlet(servicePort);
-        }
-        else
-        {
-            log.println("servlet does NOT need to be restarted :-)");
-            int servicePort= Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
-            writeProperties(newProperties, configFileForServicePort(servicePort));
-        }
+		}
+		else if (setFilter.setRequiresServletRestart() && isRunning(oldProperties))
+		{
+			log.println("servlet restart required");
+			int servicePort = Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+			doStopCommand(oldProperties);
+			waitForProcessToTerminate(oldProperties);
+			writeProperties(newProperties, configFileForServicePort(servicePort));
+			actuallyLaunchServlet(servicePort);
+		}
+		else
+		{
+			log.println("servlet does NOT need to be restarted :-)");
+			int servicePort = Integer.parseInt(newProperties.getProperty(SERVICE_PORT.toString()));
+			writeProperties(newProperties, configFileForServicePort(servicePort));
+		}
 
-    }
+	}
 
-    private
-    void dumpNginxRoutingTable(Filter filter, PrintStream out) throws IOException
-    {
-        int    tabs = Integer.parseInt(filter.getOption("tabs", "2"));
-        String host = filter.getOption("host", "127.0.0.1");
+	private
+	void doStopCommand(Filter filter, PrintStream out, boolean andThenRestart) throws IOException
+	{
+		if (filter.implicitlyMatchesEverything())
+		{
+			out.println("stop (or restart) command requires some restrictions or an explicit '--all' flag");
+			return;
+		}
 
-        // http://wiki.nginx.org/HttpUpstreamModule ("server" sub-section)
-        String weight       = filter.getOption("weight"      , null);
-        String max_fails    = filter.getOption("max-fails"   , null);
-        String fail_timeout = filter.getOption("fail-timeout", null);
-        String down         = filter.getOption("down"        , null);
-        String backup       = filter.getOption("backup"      , null);
-
-        boolean alwaysDown=false;
-        boolean downIfNotRunning=false;
-
-        if (down!=null)
-        {
-            if (down.equals("auto"))
-            {
-                downIfNotRunning=true;
-            }
-            if (down.equals("true"))
-            {
-                alwaysDown=true;
-            }
-        }
-
-        List<Properties> matchedProperties = propertiesFromMatchingConfigFiles(filter);
-
-        if (matchedProperties.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
-
-        out.println("GOOD");
-
-        for (Properties properties : matchedProperties)
-        {
-            String servicePort=properties.getProperty(SERVICE_PORT.toString());
-            for (int i=0; i<tabs; i++)
-            {
-                out.print("\t");
-            }
-            out.print(host);
-            out.print(':');
-            out.print(servicePort);
-
-            if (weight!=null)
-            {
-                out.print(" weight=");
-                out.print(weight);
-            }
-
-            if (max_fails != null)
-            {
-                out.print(" max_fails=");
-                out.print(max_fails);
-            }
-
-            if (fail_timeout != null)
-            {
-                out.print(" fail_timeout=");
-                out.print(fail_timeout);
-            }
-
-            if (backup != null)
-            {
-                out.print(" backup");
-            }
-
-            if (alwaysDown || (downIfNotRunning && !isRunning(properties)))
-            {
-                out.print(" down");
-            }
-
-            out.println(';');
-        }
-
-    }
-
-    private
-    void dumpLogFileNames(Filter filter, PrintStream out, String suffix) throws IOException
-    {
-        out.println("GOOD");
-
-        List<Properties> matchedProperties = propertiesFromMatchingConfigFiles(filter);
-
-        if (matchedProperties.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
-
-        for (Properties properties : matchedProperties)
-        {
-            String filename = logFileBaseFromProperties(properties, false) + suffix;
-            out.println(filename);
-            log.println(filename);
-        }
-    }
-
-    private
-    void dumpLogFileErrors(Filter filter, PrintStream out) throws IOException
-    {
-        List<Properties> matchedProperties = propertiesFromMatchingConfigFiles(filter);
-
-        if (matchedProperties.isEmpty())
-        {
-            String message = "no matching servlets";
-            out.println(message);
-            log.println(message);
-            return;
-        }
-
-        final String logFileSuffix=".log";
-
-        final boolean multipleMatches=(matchedProperties.size()>1);
-
-        int numErrors=0;
-
-        if (!multipleMatches)
-        {
-            final Properties onlyMatch=matchedProperties.get(0);
-            final String display = humanReadable(onlyMatch);
-            final String filename = logFileBaseFromProperties(onlyMatch, false) + logFileSuffix;
-
-            out.println("GOOD");
-            out.println("Scanning for servlet errors: "+display+" / "+filename+"\n");
-            numErrors=dumpAndCountLogErrors(filename, out, null);
-        }
-        else
-        {
-            out.println("GOOD");
-            out.println("Scanning for errors in "+matchedProperties.size()+" servlet log files...\n");
-
-            for (Properties properties : matchedProperties)
-            {
-                final String prefix = humanReadable(properties)+": ";
-                final String filename = logFileBaseFromProperties(properties, false) + logFileSuffix;
-                numErrors+=dumpAndCountLogErrors(filename, out, prefix);
-            }
-        }
-
-        if (numErrors==0)
-        {
-            final String message="No errors found";
-            out.println(message);
-            log.println(message);
-        }
-        else
-        {
-            final String message="\n"+numErrors+" error(s) found...";
-            out.println(message);
-            log.println(message);
-        }
-    }
-
-    private
-    int dumpAndCountLogErrors(String filename, PrintStream out, String prefix) throws IOException
-    {
-        int retval=0;
-        int linesRead=0;
-
-        final BufferedReader logFile = new BufferedReader(new InputStreamReader(new FileInputStream(filename)));
-
-        String lastLine=logFile.readLine();
-
-        while (lastLine!=null)
-        {
-            linesRead++;
-
-            if (!containsErrorMarker(lastLine))
-            {
-                lastLine=logFile.readLine();
-                continue;
-            }
-
-            if (prefix!=null) out.print(prefix);
-            out.println(lastLine);
-            retval++;
-
-            String line=logFile.readLine();
-            linesRead++;
-
-            // How many lines to display when we loose track of the log entries. Usually indicates a stack trace, etc.
-            int nonLogLinesToDisplay=3;
-
-            while (line!=null && !containsLogLevelMarker(line) && nonLogLinesToDisplay>0)
-            {
-                if (prefix!=null) out.print(prefix);
-                out.println(line);
-                line=logFile.readLine();
-                linesRead++;
-                nonLogLinesToDisplay--;
-            }
-
-            lastLine=line;
-        }
-
-        log.println(filename+": read "+linesRead+" lines, found "+retval+" errors");
-        return retval;
-    }
-
-    private
-    boolean containsLogLevelMarker(String line)
-    {
-        /*
-         * "2014-07-03 01:08:04,020 [DEBUG] pages.SelfTest loading page: core/PageCatalog"
-         *           1         2         3         4
-         * 01234567890123456789012345678901234567890
-         */
-        final int firstBracket=line.indexOf('[');
-        return firstBracket>23 && firstBracket<34;
-    }
-
-    private
-    boolean containsErrorMarker(String line)
-    {
-        return line.contains("[ERROR");
-    }
-
-    private
-    void doStopCommand(Filter filter, PrintStream out, boolean andThenRestart) throws IOException
-    {
-        if (filter.implicitlyMatchesEverything())
-        {
-            out.println("stop (or restart) command requires some restrictions or an explicit '--all' flag");
-            return;
-        }
-
-        final List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
+		final List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
 
 		try
 		{
@@ -1992,112 +1731,118 @@ public class Service implements Runnable
 			e.printStackTrace(log);
 		}
 
-		int total=0;
-        int success=0;
+		int total = 0;
+		int success = 0;
 
-        List<String> failures=new ArrayList<String>();
+		List<String> failures = new ArrayList<String>();
 
-        for (Properties properties : matchingProperties)
-        {
-            total++;
-            String name=humanReadable(properties);
+		for (Properties properties : matchingProperties)
+		{
+			total++;
+			String name = humanReadable(properties);
 
-            try {
-                log.println("stopping: "+name);
-                doStopCommand(properties);
-                success++;
-            } catch (Throwable t) {
-                t.printStackTrace();
-                String message="failed to stop '"+name+"': "+t.toString();
-                failures.add(message);
-                log.println(message);
-            }
-        }
+			try
+			{
+				log.println("stopping: " + name);
+				doStopCommand(properties);
+				success++;
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = "failed to stop '" + name + "': " + t.toString();
+				failures.add(message);
+				log.println(message);
+			}
+		}
 
-        for (Properties properties : matchingProperties)
-        {
-            try
-            {
-                waitForProcessToTerminate(properties);
-            }
-            catch (Throwable t)
-            {
-                t.printStackTrace();
-                String message=humanReadable(properties)+" might not have stopped: "+t.toString();
-                failures.add(message);
-                total++;
-            }
-        }
+		for (Properties properties : matchingProperties)
+		{
+			try
+			{
+				waitForProcessToTerminate(properties);
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = humanReadable(properties) + " might not have stopped: " + t.toString();
+				failures.add(message);
+				total++;
+			}
+		}
 
-        if (andThenRestart)
-        {
-            for (Properties properties : matchingProperties)
-            {
-                try
-                {
-                    final int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
-                    actuallyLaunchServlet(servicePort);
-                }
-                catch (Throwable t)
-                {
-                    t.printStackTrace();
-                    String message=humanReadable(properties)+" might not have restarted: "+t.toString();
-                    failures.add(message);
-                    total++;
-                }
-            }
+		if (andThenRestart)
+		{
+			for (Properties properties : matchingProperties)
+			{
+				try
+				{
+					final int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+					actuallyLaunchServlet(servicePort);
+				}
+				catch (Throwable t)
+				{
+					t.printStackTrace();
+					String message = humanReadable(properties) + " might not have restarted: " + t.toString();
+					failures.add(message);
+					total++;
+				}
+			}
 
-            successOrFailureReport("restarted", total, success, failures, out);
-        }
-        else
-        {
-            successOrFailureReport("stopped", total, success, failures, out);
-        }
-    }
+			successOrFailureReport("restarted", total, success, failures, out);
+		}
+		else
+		{
+			successOrFailureReport("stopped", total, success, failures, out);
+		}
+	}
 
-    private
-    void doKillCommand(Filter filter, PrintStream out) throws IOException
-    {
-        if (filter.implicitlyMatchesEverything())
-        {
-            out.println("kill command requires some restrictions or an explicit '--all' flag");
-            return;
-        }
-
-        int total=0;
-        int success=0;
-
-        //List<String> pidsToWaitFor;
-        List<String> failures=new ArrayList<String>();
-
-        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
-        {
-            total++;
-            String name=humanReadable(properties);
-
-            try {
-                log.println("killing: "+name);
-                int pid=doKillCommand(properties);
-                success++;
-            } catch (Throwable t) {
-                t.printStackTrace();
-                String message="failed to kill '"+name+"': "+t.toString();
-                failures.add(message);
-                log.println(message);
-            }
-        }
-
-        successOrFailureReport("killed", total, success, failures, out);
-    }
-
-    private
-    void doRemoveCommand(Filter filter, PrintStream out) throws IOException
+	private
+	void doKillCommand(Filter filter, PrintStream out) throws IOException
 	{
-        if (filter.implicitlyMatchesEverything())
-        {
-            out.println("remove command requires some restrictions or an explicit '--all' flag");
-            return;
-        }
+		if (filter.implicitlyMatchesEverything())
+		{
+			out.println("kill command requires some restrictions or an explicit '--all' flag");
+			return;
+		}
+
+		int total = 0;
+		int success = 0;
+
+		//List<String> pidsToWaitFor;
+		List<String> failures = new ArrayList<String>();
+
+		for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+		{
+			total++;
+			String name = humanReadable(properties);
+
+			try
+			{
+				log.println("killing: " + name);
+				int pid = doKillCommand(properties);
+				success++;
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = "failed to kill '" + name + "': " + t.toString();
+				failures.add(message);
+				log.println(message);
+			}
+		}
+
+		successOrFailureReport("killed", total, success, failures, out);
+	}
+
+	private
+	void doRemoveCommand(Filter filter, PrintStream out) throws IOException
+	{
+		if (filter.implicitlyMatchesEverything())
+		{
+			out.println("remove command requires some restrictions or an explicit '--all' flag");
+			return;
+		}
 
 		final
 		List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
@@ -2111,90 +1856,93 @@ public class Service implements Runnable
 			e.printStackTrace(log);
 		}
 
-		int total=0;
-        int success=0;
+		int total = 0;
+		int success = 0;
 
-        //List<String> pidsToWaitFor;
-        List<String> failures=new ArrayList<String>();
+		//List<String> pidsToWaitFor;
+		List<String> failures = new ArrayList<String>();
 
-        for (Properties properties : matchingProperties)
-        {
-            total++;
-            String name=humanReadable(properties);
+		for (Properties properties : matchingProperties)
+		{
+			total++;
+			String name = humanReadable(properties);
 
-            try {
-                int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+			try
+			{
+				int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
 
-                File configFile=configFileForServicePort(servicePort);
+				File configFile = configFileForServicePort(servicePort);
 
-                if (!configFile.exists())
-                {
-                    throw new FileNotFoundException(configFile.toString());
-                }
+				if (!configFile.exists())
+				{
+					throw new FileNotFoundException(configFile.toString());
+				}
 
-                File warFile=warFileForServicePort(servicePort);
+				File warFile = warFileForServicePort(servicePort);
 
-                if (!warFile.exists())
-                {
-                    throw new FileNotFoundException(warFile.toString());
-                }
+				if (!warFile.exists())
+				{
+					throw new FileNotFoundException(warFile.toString());
+				}
 
-                log.println("stopping: "+name);
+				log.println("stopping: " + name);
 
-                doStopCommand(properties);
-                waitForProcessToTerminate(properties);
+				doStopCommand(properties);
+				waitForProcessToTerminate(properties);
 
-                configFile.delete();
-                warFile.delete();
+				configFile.delete();
+				warFile.delete();
 
-                File siblingDirectory;
+				File siblingDirectory;
 
-                if (properties.containsKey(DEPLOY_DIR.toString()))
-                {
-                    siblingDirectory = new File(properties.getProperty(DEPLOY_DIR.toString()));
-                }
-                else
-                {
-                    siblingDirectory = siblingDirectoryForServicePort(servicePort);
-                }
+				if (properties.containsKey(DEPLOY_DIR.toString()))
+				{
+					siblingDirectory = new File(properties.getProperty(DEPLOY_DIR.toString()));
+				}
+				else
+				{
+					siblingDirectory = siblingDirectoryForServicePort(servicePort);
+				}
 
-                if (siblingDirectory.isDirectory())
-                {
-                    String absolutePath=siblingDirectory.getAbsolutePath();
+				if (siblingDirectory.isDirectory())
+				{
+					String absolutePath = siblingDirectory.getAbsolutePath();
 
-                    if (absolutePath.indexOf(' ')>=0 || absolutePath.indexOf("/.")>=0)
-                    {
-                        log.println("cowardly refusing to: rm -rf "+absolutePath);
-                    }
-                    else
-                    {
-                        Runtime.getRuntime().exec(new String[]{
-                            "rm",
-                            "-rf",
-                            absolutePath
-                        });
-                    }
-                }
+					if (absolutePath.indexOf(' ') >= 0 || absolutePath.indexOf("/.") >= 0)
+					{
+						log.println("cowardly refusing to: rm -rf " + absolutePath);
+					}
+					else
+					{
+						Runtime.getRuntime().exec(new String[]{
+																  "rm",
+																  "-rf",
+																  absolutePath
+						});
+					}
+				}
 
-                success++;
-            } catch (Throwable t) {
-                t.printStackTrace();
-                String message="failed to stop & remove '"+name+"': "+t.toString();
-                failures.add(message);
-                log.println(message);
-            }
-        }
+				success++;
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = "failed to stop & remove '" + name + "': " + t.toString();
+				failures.add(message);
+				log.println(message);
+			}
+		}
 
-        successOrFailureReport("removed", total, success, failures, out);
-    }
+		successOrFailureReport("removed", total, success, failures, out);
+	}
 
 	private
 	void doOrderlyDrain(List<Properties> matchingProperties) throws InterruptedException
 	{
 		//TODO: sort by preferred/specified drain order (which is, service dependency depth)
 
-		Deque<Properties> waiting=new ArrayDeque<Properties>(matchingProperties.size());
-		Deque<Properties> failed=new ArrayDeque<Properties>(matchingProperties.size());
+		Deque<Properties> waiting = new ArrayDeque<Properties>(matchingProperties.size());
+		Deque<Properties> failed = new ArrayDeque<Properties>(matchingProperties.size());
 
 		for (Properties properties : matchingProperties)
 		{
@@ -2212,20 +1960,20 @@ public class Service implements Runnable
 		}
 
 		final
-		boolean anyProcessingExceptions=!(waiting.isEmpty() && failed.isEmpty());
+		boolean anyProcessingExceptions = !(waiting.isEmpty() && failed.isEmpty());
 
-		int perLoopWaitTime=1500;
-		int waitLimiter=60000/perLoopWaitTime;
+		int perLoopWaitTime = 1500;
+		int waitLimiter = 60000 / perLoopWaitTime;
 
-		while (!waiting.isEmpty() && waitLimiter>0)
+		while (!waiting.isEmpty() && waitLimiter > 0)
 		{
-			log.println("waiting for "+waiting.size()+" servlets to drain");
+			log.println("waiting for " + waiting.size() + " servlets to drain");
 
 			Thread.sleep(perLoopWaitTime);
-			waitLimiter-=perLoopWaitTime;
+			waitLimiter -= perLoopWaitTime;
 
 			//xfer waiting -> reprocess
-			Deque<Properties> reprocess=new ArrayDeque<Properties>(waiting);
+			Deque<Properties> reprocess = new ArrayDeque<Properties>(waiting);
 			waiting.clear();
 
 			for (Properties properties : reprocess)
@@ -2262,12 +2010,12 @@ public class Service implements Runnable
 					case PASS:
 						break;
 					case FAIL:
-						log.println("unable to drain servlet: "+humanReadable(properties));
+						log.println("unable to drain servlet: " + humanReadable(properties));
 						//TODO: make this state effect the retval of the remove/shutdown commands.
 						//TODO: per-servlet option to allow drain failure to halt remove/shutdown process.
 						break;
 					case DELAY:
-						log.println("ERROR: servlet requests drain-related deferment beyond maximum allowed: "+humanReadable(properties));
+						log.println("ERROR: servlet requests drain-related deferment beyond maximum allowed: " + humanReadable(properties));
 						break;
 				}
 			}
@@ -2282,40 +2030,39 @@ public class Service implements Runnable
 	DrainResult sendDrainCommand(Properties properties)
 	{
 		final
-		int pid=pid(properties);
+		int pid = pid(properties);
 
-		if (pid<=0)
+		if (pid <= 0)
 		{
 			return DrainResult.PASS;
 		}
 
 		final
-		int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+		int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
 
-		String contextPath=properties.getProperty(CONTEXT_PATH.toString());
+		String contextPath = properties.getProperty(CONTEXT_PATH.toString());
 
 		if (contextPath.equals("/"))
 		{
-			contextPath="";
+			contextPath = "";
 		}
 
 		try
 		{
-			URL url = new URL("http://localhost:"+servicePort+contextPath+"/lifecycle/drain");
-			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+			URL url = new URL("http://localhost:" + servicePort + contextPath + "/lifecycle/drain");
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			connection.setRequestMethod("POST");
 			connection.connect();
 
 			int code = connection.getResponseCode();
 
-			log.println("lifecycle/drain status "+code+" @ "+humanReadable(properties));
+			log.println("lifecycle/drain status " + code + " @ " + humanReadable(properties));
 
-			if (code==408)
+			if (code == 408)
 			{
 				return DrainResult.DELAY;
 			}
-			else
-			if (code==202)
+			else if (code == 202)
 			{
 				//200 is returned by some frameworks even if the page does not exist, so 202 makes it a bit more intentional.
 				return DrainResult.PASS;
@@ -2323,12 +2070,12 @@ public class Service implements Runnable
 		}
 		catch (RuntimeException e)
 		{
-			log.println("lifecycle/drain failure-1 @ "+humanReadable(properties));
+			log.println("lifecycle/drain failure-1 @ " + humanReadable(properties));
 			e.printStackTrace(log);
 		}
 		catch (Exception e)
 		{
-			log.println("lifecycle/drain failure-2 @ "+humanReadable(properties));
+			log.println("lifecycle/drain failure-2 @ " + humanReadable(properties));
 			e.printStackTrace(log);
 		}
 
@@ -2336,291 +2083,296 @@ public class Service implements Runnable
 	}
 
 	private
-    void doStartCommand(Filter filter, PrintStream out) throws IOException
-    {
-        if (filter.implicitlyMatchesEverything())
-        {
-            out.println("start command requires some restrictions or an explicit '--all' flag");
-            return;
-        }
+	void doStartCommand(Filter filter, PrintStream out) throws IOException
+	{
+		if (filter.implicitlyMatchesEverything())
+		{
+			out.println("start command requires some restrictions or an explicit '--all' flag");
+			return;
+		}
 
-        int total=0;
-        int success=0;
+		int total = 0;
+		int success = 0;
 
-        //List<String> pidsToWaitFor;
-        List<String> failures=new ArrayList<String>();
+		//List<String> pidsToWaitFor;
+		List<String> failures = new ArrayList<String>();
 
-        for (Properties properties : propertiesFromMatchingConfigFiles(filter))
-        {
-            total++;
-            String name=humanReadable(properties);
+		for (Properties properties : propertiesFromMatchingConfigFiles(filter))
+		{
+			total++;
+			String name = humanReadable(properties);
 
-            try {
-                if (isRunning(properties))
-                {
-                    String message="already running: "+name;
-                    log.println(message);
-                    failures.add(message);
-                }
-                else
-                {
-                    log.println("starting: "+name);
-                    actuallyLaunchServlet(Integer.parseInt(properties.getProperty(SERVICE_PORT.toString())));
-                }
-                success++;
-            } catch (Throwable t) {
-                t.printStackTrace();
-                String message="failed to start '"+name+"': "+t.toString();
-                failures.add(message);
-                log.println(message);
-            }
-        }
+			try
+			{
+				if (isRunning(properties))
+				{
+					String message = "already running: " + name;
+					log.println(message);
+					failures.add(message);
+				}
+				else
+				{
+					log.println("starting: " + name);
+					actuallyLaunchServlet(Integer.parseInt(properties.getProperty(SERVICE_PORT.toString())));
+				}
+				success++;
+			}
+			catch (Throwable t)
+			{
+				t.printStackTrace();
+				String message = "failed to start '" + name + "': " + t.toString();
+				failures.add(message);
+				log.println(message);
+			}
+		}
 
-        successOrFailureReport("started", total, success, failures, out);
-    }
+		successOrFailureReport("started", total, success, failures, out);
+	}
 
-    private
-    void successOrFailureReport(String verbed, int total, int success, List<String> failures, PrintStream out)
-    {
-        if (success==0)
-        {
-            if (total==0)
-            {
-                out.println("total failure, filter did not match any servlets");
-            }
-            else
-            {
-                out.println("total failure (x"+total+")");
-            }
-        }
-        else if (success==total)
-        {
-            out.println("GOOD");
-            out.println(verbed+" "+total+" servlet(s)");
-        }
-        else
-        {
-            int percent=100*success/total;
-            out.println(percent + "% compliance, only "+verbed+" "+success+" of "+total+" matching servlet(s)");
-        }
+	public
+	void successOrFailureReport(String verbed, int total, int success, List<String> failures, PrintStream out)
+	{
+		if (success == 0)
+		{
+			if (total == 0)
+			{
+				out.println("total failure, filter did not match any servlets");
+			}
+			else
+			{
+				out.println("total failure (x" + total + ")");
+			}
+		}
+		else if (success == total)
+		{
+			out.println("GOOD");
+			out.println(verbed + " " + total + " servlet(s)");
+		}
+		else
+		{
+			int percent = 100 * success / total;
+			out.println(percent + "% compliance, only " + verbed + " " + success + " of " + total + " matching servlet(s)");
+		}
 
-        if (!failures.isEmpty())
-        {
-            out.println();
-            for (String s : failures)
-            {
-                out.println(s);
-            }
-        }
-    }
+		if (!failures.isEmpty())
+		{
+			out.println();
+			for (String s : failures)
+			{
+				out.println(s);
+			}
+		}
+	}
 
-    private
-    String humanReadable(Properties properties)
-    {
-        String basename=new File(properties.getProperty(ORIGINAL_WAR.toString(), "no-name")).getName();
-        String name=properties.getProperty(NAME.toString(), basename);
-        String port=properties.getProperty(SERVICE_PORT.toString(), "no-port");
-        String path=getContextPath(properties);
+	public
+	String humanReadable(Properties properties)
+	{
+		String basename = new File(properties.getProperty(ORIGINAL_WAR.toString(), "no-name")).getName();
+		String name = properties.getProperty(NAME.toString(), basename);
+		String port = properties.getProperty(SERVICE_PORT.toString(), "no-port");
+		String path = getContextPath(properties);
 
-        return name+"-"+port+"-"+path;
-    }
+		return name + "-" + port + "-" + path;
+	}
 
-    private
-    int doStopCommand(Properties properties) throws MalformedObjectNameException, ReflectionException,
-            IOException, InstanceNotFoundException, AttributeNotFoundException, MBeanException, IntrospectionException
-    {
-        int pid=pid(properties);
-        int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
-        int jmxPort=Integer.parseInt(properties.getProperty(JMX_PORT.toString()));
+	private
+	int doStopCommand(Properties properties) throws MalformedObjectNameException, ReflectionException,
+														IOException, InstanceNotFoundException, AttributeNotFoundException, MBeanException, IntrospectionException
+	{
+		int pid = pid(properties);
+		int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+		int jmxPort = Integer.parseInt(properties.getProperty(JMX_PORT.toString()));
 
-        log.println("pid="+pid+", jmx="+jmxPort);
+		log.println("pid=" + pid + ", jmx=" + jmxPort);
 
-        if ( pid<=1)
-        {
-            log.println("Already terminated? Don't have to stop this servlet.");
-            return -1;
-        }
-        else if (!isRunning(properties))
-        {
-            log.println("Stopping a dead process");
-            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
-            writeProperties(properties, configFileForServicePort(servicePort));
-            return pid;
-        }
-        else
-        {
+		if (pid <= 1)
+		{
+			log.println("Already terminated? Don't have to stop this servlet.");
+			return -1;
+		}
+		else if (!isRunning(properties))
+		{
+			log.println("Stopping a dead process");
+			properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+			writeProperties(properties, configFileForServicePort(servicePort));
+			return pid;
+		}
+		else
+		{
 			try
 			{
 				JMXUtils.printMemoryUsageGivenJMXPort(jmxPort);
 			}
 			catch (Exception e)
 			{
-				log.println("unable to determine final memory usage of process #"+pid);
+				log.println("unable to determine final memory usage of process #" + pid);
 				e.printStackTrace(log);
 			}
 
-            //JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort); hangs on RMI Reaper
-            Runtime.getRuntime().exec("kill "+pid); //still runs the shutdown hooks!!!
+			//JMXUtils.tellJettyContainerToStopAtJMXPort(jmxPort); hangs on RMI Reaper
+			Runtime.getRuntime().exec("kill " + pid); //still runs the shutdown hooks!!!
 
-            return pid;
-        }
-    }
+			return pid;
+		}
+	}
 
-    private
-    void waitForProcessToTerminate(Properties properties) throws InterruptedException, IOException
-    {
-        final long startTime=System.currentTimeMillis();
-        final long deadline=startTime+10000;
+	private
+	void waitForProcessToTerminate(Properties properties) throws InterruptedException, IOException
+	{
+		final long startTime = System.currentTimeMillis();
+		final long deadline = startTime + 10000;
 
-        while (isRunning(properties))
-        {
-            if (System.currentTimeMillis()>deadline)
-            {
-                log.println("process did not terminate: "+humanReadable(properties)+" pid="+pid(properties));
-                return;
-            }
-            Thread.sleep(200);
-        }
+		while (isRunning(properties))
+		{
+			if (System.currentTimeMillis() > deadline)
+			{
+				log.println("process did not terminate: " + humanReadable(properties) + " pid=" + pid(properties));
+				return;
+			}
+			Thread.sleep(200);
+		}
 
-        final long duration=System.currentTimeMillis()-startTime;
+		final long duration = System.currentTimeMillis() - startTime;
 
-        String seconds=String.format("%1$.3f", (duration/1000.0));
-        log.println("process has terminated: "+humanReadable(properties)+" (pid="+pid(properties)+") in "+seconds+" seconds (wait time)");
-        properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
-        writeProperties(properties);
-    }
+		String seconds = String.format("%1$.3f", (duration / 1000.0));
+		log.println("process has terminated: " + humanReadable(properties) + " (pid=" + pid(properties) + ") in " + seconds + " seconds (wait time)");
+		properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+		writeProperties(properties);
+	}
 
-    private
-    int doKillCommand(Properties properties) throws IOException
-    {
-        final int pid=pid(properties);
+	private
+	int doKillCommand(Properties properties) throws IOException
+	{
+		final int pid = pid(properties);
 
-        if (pid>0 && isRunning(properties))
-        {
-            final String command="kill -9 "+pid; //does not run the shutdown hooks, but sometimes needed if java gets stuck
-            log.println(command);
-            Runtime.getRuntime().exec(command);
+		if (pid > 0 && isRunning(properties))
+		{
+			final String command = "kill -9 " + pid; //does not run the shutdown hooks, but sometimes needed if java gets stuck
+			log.println(command);
+			Runtime.getRuntime().exec(command);
 
-            properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
-            writeProperties(properties);
-        }
+			properties.setProperty(PID.toString(), SERVLET_STOPPED_PID);
+			writeProperties(properties);
+		}
 
-        return pid;
-    }
+		return pid;
+	}
 
-    //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
-    private
-    boolean presentAndTrue(Properties p, ServletProp key)
-    {
-        String s=p.getProperty(key.toString());
-        if (s==null || s.length()==0) return false;
-        char c=s.charAt(0);
-        return (c=='t' || c=='T' || c=='1' || c=='y' || c=='Y');
-    }
+	//NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
+	private
+	boolean presentAndTrue(Properties p, ServletProp key)
+	{
+		String s = p.getProperty(key.toString());
+		if (s == null || s.length() == 0) return false;
+		char c = s.charAt(0);
+		return (c == 't' || c == 'T' || c == '1' || c == 'y' || c == 'Y');
+	}
 
-    //NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
-    private
-    boolean presentAndFalse(Properties p, ServletProp key)
-    {
-        String s=p.getProperty(key.toString());
-        if (s==null || s.length()==0) return false;
-        char c=s.charAt(0);
-        return (c=='f' || c=='F' || c=='0' || c=='n' || c=='N');
-    }
+	//NB: presentAndTrue & presentAndFalse are not complementary (they both return false for NULL or unknown)
+	private
+	boolean presentAndFalse(Properties p, ServletProp key)
+	{
+		String s = p.getProperty(key.toString());
+		if (s == null || s.length() == 0) return false;
+		char c = s.charAt(0);
+		return (c == 'f' || c == 'F' || c == '0' || c == 'n' || c == 'N');
+	}
 
-    private static final DateFormat iso_8601_ish = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS' UTC'");
-    private static final DateFormat iso_8601_compat1 = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
-    private static final DateFormat compact_iso_8601_ish_filename = new SimpleDateFormat("yyyyMMdd");
+	private static final DateFormat iso_8601_ish                  = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS' UTC'");
+	private static final DateFormat iso_8601_compat1              = new SimpleDateFormat("yyyy-MM-dd HH:mm'z'");
+	private static final DateFormat compact_iso_8601_ish_filename = new SimpleDateFormat("yyyyMMdd");
 
-    static
-    {
-        TimeZone timeZone=TimeZone.getTimeZone("UTC");
-        Calendar calendar=Calendar.getInstance(timeZone);
-        iso_8601_ish.setCalendar(calendar);
-        iso_8601_compat1.setCalendar(calendar);
-        compact_iso_8601_ish_filename.setCalendar(calendar);
-    }
+	static
+	{
+		TimeZone timeZone = TimeZone.getTimeZone("UTC");
+		Calendar calendar = Calendar.getInstance(timeZone);
+		iso_8601_ish.setCalendar(calendar);
+		iso_8601_compat1.setCalendar(calendar);
+		compact_iso_8601_ish_filename.setCalendar(calendar);
+	}
 
-    private Date logDate()
-    {
-        Date now=new Date();
-        log.println();
-        log.println(iso_8601_ish.format(now));
-        return now;
-    }
+	private
+	Date logDate()
+	{
+		Date now = new Date();
+		log.println();
+		log.println(iso_8601_ish.format(now));
+		return now;
+	}
 
-    private
-    void doLaunchCommand(List<String> args, ObjectInputStream in, PrintStream out, int numFiles) throws IOException
-    {
-        Filter filter=getFilter(args);
+	private
+	void doLaunchCommand(List<String> args, ObjectInputStream in, PrintStream out, int numFiles) throws IOException
+	{
+		Filter filter = getFilter(args);
 
         /* "Mandatory" arguments */
-        String war     = theOneRequired("war" , filter.war );
+		String war = theOneRequired("war", filter.war);
 
         /* Optional arguments */
-        String name        = oneOrNull("name", filter.name);
-        String contextPath = oneOrNull("path", filter.path);
+		String name = oneOrNull("name", filter.name);
+		String contextPath = oneOrNull("path", filter.path);
 
-        String tag         = commaJoinedOrNull("tag"  , filter.tag  );
-        String version     = commaJoinedOrNull("version", filter.version);
+		String tag = commaJoinedOrNull("tag", filter.tag);
+		String version = commaJoinedOrNull("version", filter.version);
 
-        String heapMemory  = oneOrNull("heap", filter.heap);
-        String permMemory  = oneOrNull("perm", filter.perm);
-        String stackMemory = oneOrNull("stack", filter.stack);
+		String heapMemory = oneOrNull("heap", filter.heap);
+		String permMemory = oneOrNull("perm", filter.perm);
+		String stackMemory = oneOrNull("stack", filter.stack);
 
-        String withoutOptions = commaJoinedOrNull("without", filter.without);
+		String withoutOptions = commaJoinedOrNull("without", filter.without);
 
         /* Launch options */
-        String dry  = filter.getOption("dry", null);
-        String returnValue=filter.getOption("return", "port"); //by default, we will print the port number on success
+		String dry = filter.getOption("dry", null);
+		String returnValue = filter.getOption("return", "port"); //by default, we will print the port number on success
 
-        //String portNumberInLogFilename=filter.getOption("port-based-logs", null);
+		//String portNumberInLogFilename=filter.getOption("port-based-logs", null);
 
-        String basename=stripPathSuffixAndVersionNumber(war);
+		String basename = stripPathSuffixAndVersionNumber(war);
 
-        log.println("BASE="+basename);
+		log.println("BASE=" + basename);
 
-        boolean nameIsGuessed=false;
+		boolean nameIsGuessed = false;
 
-        if (name==null)
-        {
-            name=guessNameFromWar(basename);
-            log.println("* guessed application name from war: "+name);
-            nameIsGuessed=true;
-        }
+		if (name == null)
+		{
+			name = guessNameFromWar(basename);
+			log.println("* guessed application name from war: " + name);
+			nameIsGuessed = true;
+		}
 
-        log.println("WAR ="+war );
-        log.println("NAME="+name);
-        log.println("PATH="+contextPath);
+		log.println("WAR =" + war);
+		log.println("NAME=" + name);
+		log.println("PATH=" + contextPath);
 
-        PortReservation initialPortReservation;
-        {
+		PortReservation initialPortReservation;
+		{
 
-            if (filter.port!=null)
-            {
-                String servicePortString=oneOrNull("servicePort", filter.port);
+			if (filter.port != null)
+			{
+				String servicePortString = oneOrNull("servicePort", filter.port);
 
-                if (filter.jmxPort!=null)
-                {
-                    log.println("(!) jmx & service port were both specified");
-                    String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
-                    initialPortReservation=PortReservation.exactly(servicePortString, jmxPort);
-                }
-                else
-                {
-                    log.println("(!) service port was specified");
-                    initialPortReservation=PortReservation.givenFixedServicePort(servicePortString, minimumServicePort, minimumJMXPort);
-                }
-            }
-            else
-            if (filter.jmxPort != null)
-            {
-                log.println("(!) jmx port was specified");
-                String jmxPort=oneOrNull("jmxPort", filter.jmxPort);
-                initialPortReservation=PortReservation.givenFixedJMXPort(jmxPort, minimumServicePort, minimumJMXPort);
-            }
-            else
-            {
+				if (filter.jmxPort != null)
+				{
+					log.println("(!) jmx & service port were both specified");
+					String jmxPort = oneOrNull("jmxPort", filter.jmxPort);
+					initialPortReservation = PortReservation.exactly(servicePortString, jmxPort);
+				}
+				else
+				{
+					log.println("(!) service port was specified");
+					initialPortReservation = PortReservation.givenFixedServicePort(servicePortString,
+																					  minimumServicePort,
+																					  minimumJMXPort);
+				}
+			}
+			else if (filter.jmxPort != null)
+			{
+				log.println("(!) jmx port was specified");
+				String jmxPort = oneOrNull("jmxPort", filter.jmxPort);
+				initialPortReservation = PortReservation.givenFixedJMXPort(jmxPort, minimumServicePort, minimumJMXPort);
+			}
+			else
+			{
 				try
 				{
 					initialPortReservation = PortReservation.nameCentric(name, minimumServicePort, minimumJMXPort);
@@ -2630,34 +2382,45 @@ public class Service implements Runnable
 					e.printStackTrace(log);
 					initialPortReservation = PortReservation.startingAt(minimumServicePort, minimumJMXPort);
 				}
-            }
-        }
+			}
+		}
 
-        final PortReservation portReservation;
-        final int servicePort;
-        final int jmxPort;
-        {
-            final int initialServicePort=initialPortReservation.getServicePort();
-            int tempServicePort=initialServicePort;
+		final PortReservation portReservation;
+		final int servicePort;
+		final int jmxPort;
+		{
+			final int initialServicePort = initialPortReservation.getServicePort();
+			int tempServicePort = initialServicePort;
 
-            if (configFileForServicePort(initialServicePort).exists())
-            {
-                log.println("port "+initialServicePort+" is already allocated (config file exists)");
-                if (filter.port   !=null) { readAll(in); out.println("ERROR: the specified port is already allocated: " + initialServicePort); return; }
-                if (filter.jmxPort!=null) { readAll(in); out.println("ERROR: the equivalent service port (for specified JMX port) is already allocated: " + initialPortReservation.getJmxPort() + " (jmx) ---> " + initialServicePort); return; }
-            }
+			if (configFileForServicePort(initialServicePort).exists())
+			{
+				log.println("port " + initialServicePort + " is already allocated (config file exists)");
+				if (filter.port != null)
+				{
+					readAll(in);
+					out.println("ERROR: the specified port is already allocated: " + initialServicePort);
+					return;
+				}
+				if (filter.jmxPort != null)
+				{
+					readAll(in);
+					out.println("ERROR: the equivalent service port (for specified JMX port) is already allocated: " + initialPortReservation.getJmxPort() + " (jmx) ---> " + initialServicePort);
+					return;
+				}
+			}
 
-            PortReservation previousReservation=initialPortReservation;
-            PortReservation newReservation=null;
+			PortReservation previousReservation = initialPortReservation;
+			PortReservation newReservation = null;
 
-            while (configFileForServicePort(tempServicePort).exists())
-            {
-                log.println("WARN: port already configured: "+tempServicePort);
+			while (configFileForServicePort(tempServicePort).exists())
+			{
+				log.println("WARN: port already configured: " + tempServicePort);
 
 				try
 				{
 					//This is expected to "fill in" gaps left by the name-centric initial allocation...
-					newReservation = PortReservation.startingAt(previousReservation.getServicePort(), previousReservation.getJmxPort());
+					newReservation = PortReservation.startingAt(previousReservation.getServicePort(),
+																   previousReservation.getJmxPort());
 				}
 				catch (Exception e)
 				{
@@ -2666,119 +2429,118 @@ public class Service implements Runnable
 					newReservation = PortReservation.startingAt(minimumServicePort, minimumJMXPort);
 				}
 
-                previousReservation.release();
+				previousReservation.release();
 
-                tempServicePort=newReservation.getServicePort();
+				tempServicePort = newReservation.getServicePort();
 
-                if (tempServicePort==initialServicePort)
-                {
-                    throw new IllegalStateException("attempting to acquire a port reservation wrapped back around to "+tempServicePort+" this instance is probably 'full'...");
-                }
+				if (tempServicePort == initialServicePort)
+				{
+					throw new IllegalStateException("attempting to acquire a port reservation wrapped back around to " + tempServicePort + " this instance is probably 'full'...");
+				}
 
-                previousReservation=newReservation;
-            }
+				previousReservation = newReservation;
+			}
 
-            if (newReservation==null)
-            {
-                portReservation=initialPortReservation;
-            }
-            else
-            {
-                portReservation=newReservation;
-            }
+			if (newReservation == null)
+			{
+				portReservation = initialPortReservation;
+			}
+			else
+			{
+				portReservation = newReservation;
+			}
 
-            servicePort = portReservation.getServicePort();
-            jmxPort     = portReservation.getJmxPort();
-        }
+			servicePort = portReservation.getServicePort();
+			jmxPort = portReservation.getJmxPort();
+		}
 
-        log.println("PORT="+servicePort);
-        log.println("JMX ="+jmxPort);
+		log.println("PORT=" + servicePort);
+		log.println("JMX =" + jmxPort);
 
-        final File warFile   =warFileForServicePort(servicePort);
-        final File configFile=configFileForServicePort(servicePort);
+		final File warFile = warFileForServicePort(servicePort);
+		final File configFile = configFileForServicePort(servicePort);
 
-        final InputStream warSource;
-        final Long bytes;
-        {
-            if (numFiles==0 && looksLikeURL(war))
-            {
-                log.println("reading war file from url (3rd-party to client/server): "+war);
-                warSource=inputStreamFromPossiblyKnownSourceLikeJenkins(war);
-                bytes=null;
-            }
-            else
-            if (numFiles!=1)
-            {
-                if (numFiles==0)
-                {
-                    out.println("service side did not receive the war file, make sure it is reachable client side and that you have specified");
-                }
-                else
-                {
-                    out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
-                }
+		final InputStream warSource;
+		final Long bytes;
+		{
+			if (numFiles == 0 && looksLikeURL(war))
+			{
+				log.println("reading war file from url (3rd-party to client/server): " + war);
+				warSource = inputStreamFromPossiblyKnownSourceLikeJenkins(war);
+				bytes = null;
+			}
+			else if (numFiles != 1)
+			{
+				if (numFiles == 0)
+				{
+					out.println("service side did not receive the war file, make sure it is reachable client side and that you have specified");
+				}
+				else
+				{
+					out.println("expecting precisely one file... the war-file; make sure no other command-line args are file names");
+				}
 
-                log.println("client supplied "+numFiles+" files (expecting 1 [or a url] for launch command)");
-                return;
-            }
-            else
-            {
-                String originalFilename=in.readUTF();
+				log.println("client supplied " + numFiles + " files (expecting 1 [or a url] for launch command)");
+				return;
+			}
+			else
+			{
+				String originalFilename = in.readUTF();
 
-                if (!originalFilename.equals(war))
-                {
-                    log.println("WARN: war != filename: "+originalFilename);
-                }
+				if (!originalFilename.equals(war))
+				{
+					log.println("WARN: war != filename: " + originalFilename);
+				}
 
-                if (!originalFilename.endsWith(".war"))
-                {
-                    String message="cowardly refusing to process war file that does not end in '.war', if you don't know what you are doing please ask for help!";
-                    log.println(message);
-                    out.println(message);
-                    return;
-                }
+				if (!originalFilename.endsWith(".war"))
+				{
+					String message = "cowardly refusing to process war file that does not end in '.war', if you don't know what you are doing please ask for help!";
+					log.println(message);
+					out.println(message);
+					return;
+				}
 
-                warSource=in;
-                bytes=in.readLong();
+				warSource = in;
+				bytes = in.readLong();
 
-                log.println("receiving via hj-control connection: "+originalFilename+" "+bytes+" bytes => "+warFile);
-            }
-        }
+				log.println("receiving via hj-control connection: " + originalFilename + " " + bytes + " bytes => " + warFile);
+			}
+		}
 
-        //Stream at most 'bytes' (could be null, meaning 'all of them') from warSource to warFile
-        {
-            FileOutputStream fos=new FileOutputStream(warFile);
-            try
-            {
-                int max=4096;
-                byte[] buffer=new byte[max];
+		//Stream at most 'bytes' (could be null, meaning 'all of them') from warSource to warFile
+		{
+			FileOutputStream fos = new FileOutputStream(warFile);
+			try
+			{
+				int max = 4096;
+				byte[] buffer = new byte[max];
 
-                Long bytesToGo=bytes;
-                int read=max;
+				Long bytesToGo = bytes;
+				int read = max;
 
-                while ((read=warSource.read(buffer, 0, read))>0)
-                {
-                    fos.write(buffer, 0, read);
+				while ((read = warSource.read(buffer, 0, read)) > 0)
+				{
+					fos.write(buffer, 0, read);
 
-                    if (bytesToGo!=null)
-                    {
-                        bytesToGo-=read;
-                        read=(int)Math.min(bytesToGo, max);
-                    }
-                }
+					if (bytesToGo != null)
+					{
+						bytesToGo -= read;
+						read = (int) Math.min(bytesToGo, max);
+					}
+				}
 
-                fos.flush();
+				fos.flush();
 
-                logDate();
-                log.println("finished writing: "+warFile);
-            }
-            finally
-            {
-                fos.close();
-            }
-        }
+				logDate();
+				log.println("finished writing: " + warFile);
+			}
+			finally
+			{
+				fos.close();
+			}
+		}
 
-        Properties p=null;
+		Properties p = null;
 
 		try
 		{
@@ -2786,317 +2548,320 @@ public class Service implements Runnable
 		}
 		catch (Exception e)
 		{
-            log.println("Unable to read properties from war file");
-            e.printStackTrace();
-        }
-
-		if (p==null)
-		{
-			//No 'app.properties'... that's okay.
-			p=new Properties();
+			log.println("Unable to read properties from war file");
+			e.printStackTrace();
 		}
 
-        if (nameIsGuessed)
-        {
-            if (p.containsKey(NAME.toString()))
-            {
-                //the name provided in the app properties overrides any guessed name
-                name=p.getProperty(NAME.toString());
-                log.println("NAME="+name+" (updated from app.properties)");
-            }
+		if (p == null)
+		{
+			//No 'app.properties'... that's okay.
+			p = new Properties();
+		}
 
-            p.setProperty(NAME.toString(), name);
-        }
-        else
-        {
-            //the name provided on the command line overrides any in the app properties.
-            p.setProperty(NAME.toString(), name);
-        }
+		if (nameIsGuessed)
+		{
+			if (p.containsKey(NAME.toString()))
+			{
+				//the name provided in the app properties overrides any guessed name
+				name = p.getProperty(NAME.toString());
+				log.println("NAME=" + name + " (updated from app.properties)");
+			}
 
-        //At this point, we at least know our application name! This will let us derive our log base, etc.
+			p.setProperty(NAME.toString(), name);
+		}
+		else
+		{
+			//the name provided on the command line overrides any in the app properties.
+			p.setProperty(NAME.toString(), name);
+		}
 
-        if (version==null)
-        {
-            try {
-                version=MavenUtils.readVersionNumberFromWarFile(warFile);
-                log.println("? version from maven: "+version);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+		//At this point, we at least know our application name! This will let us derive our log base, etc.
 
-        if (version==null)
-        {
-            version=guessVersionNumberFromWarName(war);
-            log.println("? version from war name: "+version);
-        }
+		if (version == null)
+		{
+			try
+			{
+				version = MavenUtils.readVersionNumberFromWarFile(warFile);
+				log.println("? version from maven: " + version);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 
-        if (p==null)
-        {
-            log.println("INFO: the war file has no embedded servlet properties");
-            p=new Properties();
-        }
+		if (version == null)
+		{
+			version = guessVersionNumberFromWarName(war);
+			log.println("? version from war name: " + version);
+		}
+
+		if (p == null)
+		{
+			log.println("INFO: the war file has no embedded servlet properties");
+			p = new Properties();
+		}
 
 		//----- from this point, command line options (at the top of the function) override in-built options
 
-        if (version!=null)
-        {
-            maybeSet(p, VERSION, version);
-        }
+		if (version != null)
+		{
+			maybeSet(p, VERSION, version);
+		}
 
-		if (contextPath!=null)
+		if (contextPath != null)
 		{
 			p.setProperty(CONTEXT_PATH.toString(), contextPath);
 		}
 
-        if (tag!=null)
-        {
-            p.setProperty(TAGS.toString(), tag);
-        }
+		if (tag != null)
+		{
+			p.setProperty(TAGS.toString(), tag);
+		}
 
-        maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
-        maybeSet(p, JMX_PORT, Integer.toString(jmxPort));
-        maybeSet(p, ORIGINAL_WAR, war);
+		maybeSet(p, SERVICE_PORT, Integer.toString(servicePort));
+		maybeSet(p, JMX_PORT, Integer.toString(jmxPort));
+		maybeSet(p, ORIGINAL_WAR, war);
 
-        if (name!=null && !nameIsGuessed)
-        {
-            p.setProperty(NAME.toString(), name);
-        }
+		if (name != null && !nameIsGuessed)
+		{
+			p.setProperty(NAME.toString(), name);
+		}
 
-        if (withoutOptions!=null)
-        {
-            p.setProperty(WITHOUT.toString(), withoutOptions);
-        }
+		if (withoutOptions != null)
+		{
+			p.setProperty(WITHOUT.toString(), withoutOptions);
+		}
 
-        if (USE_BIG_TAPESTRY_DEFAULTS)
-        {
-            //FROM: http://tapestry.apache.org/specific-errors-faq.html
-            maybeSet(p, HEAP_SIZE , "600m"); // -Xmx
-            maybeSet(p, PERM_SIZE , "512m"); // -XX:MaxPermSize=
-            maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
-        }
-        else
-        {
-            maybeSet(p, HEAP_SIZE , "300m"); // -Xmx
-            maybeSet(p, PERM_SIZE , "200m"); // -XX:MaxPermSize=
-            maybeSet(p, STACK_SIZE, "1m"  ); // -Xss
-        }
+		if (USE_BIG_TAPESTRY_DEFAULTS)
+		{
+			//FROM: http://tapestry.apache.org/specific-errors-faq.html
+			maybeSet(p, HEAP_SIZE, "600m"); // -Xmx
+			maybeSet(p, PERM_SIZE, "512m"); // -XX:MaxPermSize=
+			maybeSet(p, STACK_SIZE, "1m"); // -Xss
+		}
+		else
+		{
+			maybeSet(p, HEAP_SIZE, "300m"); // -Xmx
+			maybeSet(p, PERM_SIZE, "200m"); // -XX:MaxPermSize=
+			maybeSet(p, STACK_SIZE, "1m"); // -Xss
+		}
 
-        if (heapMemory!=null)
-        {
-            p.setProperty(HEAP_SIZE.toString(), heapMemory);
-        }
+		if (heapMemory != null)
+		{
+			p.setProperty(HEAP_SIZE.toString(), heapMemory);
+		}
 
-        if (permMemory!=null)
-        {
-            p.setProperty(PERM_SIZE.toString(), permMemory);
-        }
+		if (permMemory != null)
+		{
+			p.setProperty(PERM_SIZE.toString(), permMemory);
+		}
 
-        if (stackMemory!=null)
-        {
-            p.setProperty(STACK_SIZE.toString(), stackMemory);
-        }
+		if (stackMemory != null)
+		{
+			p.setProperty(STACK_SIZE.toString(), stackMemory);
+		}
 
-        maybeSet(p, PID, "-1");
+		maybeSet(p, PID, "-1");
 
-        if (filter.options!=null)
-        {
-            String options=commaJoinedOrNull("options", filter.options.keySet());
-            log.println("launch options: "+options);
-            p.setProperty(OPTIONS.toString(), options);
-        }
+		if (filter.options != null)
+		{
+			String options = commaJoinedOrNull("options", filter.options.keySet());
+			log.println("launch options: " + options);
+			p.setProperty(OPTIONS.toString(), options);
+		}
 
-        tagPresentDate(p, DATE_CREATED);
-        writeProperties(p, configFile);
+		tagPresentDate(p, DATE_CREATED);
+		writeProperties(p, configFile);
 
-        portReservation.release();
+		portReservation.release();
 
-        String retval=Integer.toString(servicePort);
+		String retval = Integer.toString(servicePort);
 
-        if (dry!=null && dry.toLowerCase().equals("true"))
-        {
-            log.println("not launching servlet, as dry option is true");
-            if (returnValue.equals("pid"))
-            {
-                retval="dry";
-            }
-        }
-        else
-        {
-            int pid=actuallyLaunchServlet(servicePort);
-            if (returnValue.equals("pid"))
-            {
-                retval=Integer.toString(pid);
-            }
-        }
-        out.println("GOOD");
-        out.println(retval);
-    }
+		if (dry != null && dry.toLowerCase().equals("true"))
+		{
+			log.println("not launching servlet, as dry option is true");
+			if (returnValue.equals("pid"))
+			{
+				retval = "dry";
+			}
+		}
+		else
+		{
+			int pid = actuallyLaunchServlet(servicePort);
+			if (returnValue.equals("pid"))
+			{
+				retval = Integer.toString(pid);
+			}
+		}
+		out.println("GOOD");
+		out.println(retval);
+	}
 
-    private
-    InputStream inputStreamFromPossiblyKnownSourceLikeJenkins(String url) throws IOException
-    {
-        final URLConnection urlConnection;
-        {
-            if (url.contains("jenkins.allogy.com"))
-            {
-                log.println("recognizing jenkins url: "+url);
-                url=translateJenkinsUrlToSideChannel(url);
-                //log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
-                urlConnection=new URL(url).openConnection();
-                urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
-            }
-            else
-            {
-                urlConnection=new URL(url).openConnection();
-            }
-        }
+	private
+	InputStream inputStreamFromPossiblyKnownSourceLikeJenkins(String url) throws IOException
+	{
+		final URLConnection urlConnection;
+		{
+			if (url.contains("jenkins.allogy.com"))
+			{
+				log.println("recognizing jenkins url: " + url);
+				url = translateJenkinsUrlToSideChannel(url);
+				//log.println("Authorization: "+JENKINS_AUTHORIZATION_HEADER);
+				urlConnection = new URL(url).openConnection();
+				urlConnection.setRequestProperty("Authorization", JENKINS_AUTHORIZATION_HEADER);
+			}
+			else
+			{
+				urlConnection = new URL(url).openConnection();
+			}
+		}
 
-        return urlConnection.getInputStream();
-    }
+		return urlConnection.getInputStream();
+	}
 
-    /**
-     * Generates a URL to nginx which bypasses jenkins security measures, which seem to unconditionally respond to
-     * artifact requests with a 403 error (might be a plugin conflict?).
-     *
-     * @param url
-     * @return
-     */
-    public static
-    String translateJenkinsUrlToSideChannel(String url)
-    {
-        //url="https://jenkins.allogy.com/job/Capillary%20Content%20Editor/207/artifact/target/capillary-wui.war"
-        //bits:https://jenkins.allogy.com/job                 /Capillary%20Content%20Editor/      /207/artifact/target/capillary-wui.war"
-        //out="https://jenkins.allogy.com/artifact-sidechannel/Capillary%20Content%20Editor/builds/207/archive /target/capillary-wui.war"
-        //(i)=   0    1          2                3                        4                [dne]   5     6        7          8
-        final String[] bits=url.split("/");
-        final StringBuilder sb=new StringBuilder();
+	/**
+	 * Generates a URL to nginx which bypasses jenkins security measures, which seem to unconditionally respond to
+	 * artifact requests with a 403 error (might be a plugin conflict?).
+	 *
+	 * @param url
+	 * @return
+	 */
+	public static
+	String translateJenkinsUrlToSideChannel(String url)
+	{
+		//url="https://jenkins.allogy.com/job/Capillary%20Content%20Editor/207/artifact/target/capillary-wui.war"
+		//bits:https://jenkins.allogy.com/job                 /Capillary%20Content%20Editor/      /207/artifact/target/capillary-wui.war"
+		//out="https://jenkins.allogy.com/artifact-sidechannel/Capillary%20Content%20Editor/builds/207/archive /target/capillary-wui.war"
+		//(i)=   0    1          2                3                        4                [dne]   5     6        7          8
+		final String[] bits = url.split("/");
+		final StringBuilder sb = new StringBuilder();
 
-        int i=0;
-        for (String bit : bits)
-        {
-            switch(i)
-            {
-                case 3:
-                    sb.append("/artifact-sidechannel");
-                    break;
+		int i = 0;
+		for (String bit : bits)
+		{
+			switch (i)
+			{
+				case 3:
+					sb.append("/artifact-sidechannel");
+					break;
 
-                case 6:
-                    sb.append("/archive");
-                    break;
+				case 6:
+					sb.append("/archive");
+					break;
 
-                case 5:
-                    sb.append("/builds");
-                    //FALL-THROUGH
+				case 5:
+					sb.append("/builds");
+					//FALL-THROUGH
 
-                default:
-                    sb.append('/');
-                    sb.append(bit);
-            }
-            i++;
-        }
+				default:
+					sb.append('/');
+					sb.append(bit);
+			}
+			i++;
+		}
 
-        //Extra forward slash!
-        sb.deleteCharAt(0);
-        String retval=sb.toString();
+		//Extra forward slash!
+		sb.deleteCharAt(0);
+		String retval = sb.toString();
 
-        System.err.println("Translated Jenkins URL to artifact side channel: "+retval);
-        return retval;
-    }
+		System.err.println("Translated Jenkins URL to artifact side channel: " + retval);
+		return retval;
+	}
 
-    private
-    boolean looksLikeURL(String fileOrUrl)
-    {
-        final int i=fileOrUrl.indexOf("://");
-        return ( i > 0 ) && ( i < 10 );
-    }
+	private
+	boolean looksLikeURL(String fileOrUrl)
+	{
+		final int i = fileOrUrl.indexOf("://");
+		return (i > 0) && (i < 10);
+	}
 
-    private
-    void readAll(InputStream in) throws IOException
-    {
-        while (in.read()>=0);
-    }
+	private
+	void readAll(InputStream in) throws IOException
+	{
+		while (in.read() >= 0) ;
+	}
 
-    private
-    String guessVersionNumberFromWarName(String name)
-    {
-        int slash=name.lastIndexOf('/');
-        if (slash >0) name=name.substring(slash+1);
-        int period = name.lastIndexOf('.');
-        if (period>0) name=name.substring(0, period);
-        int hypen  = name.lastIndexOf('-');
-        if (hypen >0)
-        {
-            String beforeHypen=name.substring(0, hypen);
-            String afterHypen=name.substring(hypen+1);
-            if (looksLikeVersionNumber(afterHypen))
-            {
-                return afterHypen;
-            }
-            else
-            {
-                return null;
-            }
-        }
-        return null;
-    }
+	private
+	String guessVersionNumberFromWarName(String name)
+	{
+		int slash = name.lastIndexOf('/');
+		if (slash > 0) name = name.substring(slash + 1);
+		int period = name.lastIndexOf('.');
+		if (period > 0) name = name.substring(0, period);
+		int hypen = name.lastIndexOf('-');
+		if (hypen > 0)
+		{
+			String beforeHypen = name.substring(0, hypen);
+			String afterHypen = name.substring(hypen + 1);
+			if (looksLikeVersionNumber(afterHypen))
+			{
+				return afterHypen;
+			}
+			else
+			{
+				return null;
+			}
+		}
+		return null;
+	}
 
-    private
-    String stripPathSuffixAndVersionNumber(String name)
-    {
-        int slash=name.lastIndexOf('/');
-        if (slash >0) name=name.substring(slash+1);
-        int period = name.lastIndexOf('.');
-        if (period>0) name=name.substring(0, period);
-        int hypen  = name.lastIndexOf('-');
-        if (hypen >0)
-        {
-            String beforeHypen=name.substring(0, hypen);
-            String afterHypen=name.substring(hypen+1);
-            if (looksLikeVersionNumber(afterHypen))
-            {
-                return beforeHypen;
-            }
-            else
-            {
-                return name;
-            }
-        }
-        return name;
-    }
+	private
+	String stripPathSuffixAndVersionNumber(String name)
+	{
+		int slash = name.lastIndexOf('/');
+		if (slash > 0) name = name.substring(slash + 1);
+		int period = name.lastIndexOf('.');
+		if (period > 0) name = name.substring(0, period);
+		int hypen = name.lastIndexOf('-');
+		if (hypen > 0)
+		{
+			String beforeHypen = name.substring(0, hypen);
+			String afterHypen = name.substring(hypen + 1);
+			if (looksLikeVersionNumber(afterHypen))
+			{
+				return beforeHypen;
+			}
+			else
+			{
+				return name;
+			}
+		}
+		return name;
+	}
 
-    private
-    boolean looksLikeVersionNumber(String s)
-    {
-        for(int i=s.length()-1; i>=0; i--)
-        {
-            char c=s.charAt(i);
-            if (c>='0' && c<='9') continue;
-            if (c=='.') continue;
-            return false;
-        }
-        return s.length()>0;
-    }
+	private
+	boolean looksLikeVersionNumber(String s)
+	{
+		for (int i = s.length() - 1; i >= 0; i--)
+		{
+			char c = s.charAt(i);
+			if (c >= '0' && c <= '9') continue;
+			if (c == '.') continue;
+			return false;
+		}
+		return s.length() > 0;
+	}
 
-    private
-    String guessPathFromWar(String warBaseName)
-    {
-        int hypen  = warBaseName.lastIndexOf('-');
+	private
+	String guessPathFromWar(String warBaseName)
+	{
+		int hypen = warBaseName.lastIndexOf('-');
 
-        if (hypen>0)
-        {
-            System.err.println("guessPathFromWar-1: "+warBaseName);
-            return "/"+warBaseName.substring(hypen+1);
-        }
-        else
-        {
-            System.err.println("guessPathFromWar-2: "+warBaseName);
-            return "/"+warBaseName;
-        }
-    }
+		if (hypen > 0)
+		{
+			System.err.println("guessPathFromWar-1: " + warBaseName);
+			return "/" + warBaseName.substring(hypen + 1);
+		}
+		else
+		{
+			System.err.println("guessPathFromWar-2: " + warBaseName);
+			return "/" + warBaseName;
+		}
+	}
 
-    private
-    String guessNameFromWar(final String warBaseName)
+	private
+	String guessNameFromWar(final String warBaseName)
 	{
 		String retval;
 		{
@@ -3114,91 +2879,94 @@ public class Service implements Runnable
 		return ServletName.filter(retval);
 	}
 
-	private String commaJoinedOrNull(String fieldName, Set<String> set)
-    {
-        if (set==null)
-        {
-            return null;
-        }
+	private
+	String commaJoinedOrNull(String fieldName, Set<String> set)
+	{
+		if (set == null)
+		{
+			return null;
+		}
 
-        Iterator<String> i=set.iterator();
-        StringBuilder sb=new StringBuilder();
-        sb.append(i.next());
+		Iterator<String> i = set.iterator();
+		StringBuilder sb = new StringBuilder();
+		sb.append(i.next());
 
-        while (i.hasNext())
-        {
-            sb.append(',');
-            sb.append(i.next());
-        }
+		while (i.hasNext())
+		{
+			sb.append(',');
+			sb.append(i.next());
+		}
 
-        return sb.toString();
-    }
+		return sb.toString();
+	}
 
-    private String theOneRequired(String fieldName, Set<String> set)
-    {
-        if (set==null)
-        {
-            throw new IllegalArgumentException(fieldName+" required, but not provided");
-        }
-        Iterator<String> i=set.iterator();
-        String value=i.next();
-        if (i.hasNext())
-        {
-            throw new IllegalArgumentException("precisely one "+fieldName+" required, but "+set.size()+" provided");
-        }
-        return value;
-    }
+	private
+	String theOneRequired(String fieldName, Set<String> set)
+	{
+		if (set == null)
+		{
+			throw new IllegalArgumentException(fieldName + " required, but not provided");
+		}
+		Iterator<String> i = set.iterator();
+		String value = i.next();
+		if (i.hasNext())
+		{
+			throw new IllegalArgumentException("precisely one " + fieldName + " required, but " + set.size() + " provided");
+		}
+		return value;
+	}
 
-    private String oneOrNull(String fieldName, Set<String> set)
-    {
-        if (set==null)
-        {
-            return null;
-        }
-        Iterator<String> i=set.iterator();
-        String value=i.next();
-        if (i.hasNext())
-        {
-            throw new IllegalArgumentException("precisely one "+fieldName+" required, but "+set.size()+" provided");
-        }
-        return value;
-    }
+	private
+	String oneOrNull(String fieldName, Set<String> set)
+	{
+		if (set == null)
+		{
+			return null;
+		}
+		Iterator<String> i = set.iterator();
+		String value = i.next();
+		if (i.hasNext())
+		{
+			throw new IllegalArgumentException("precisely one " + fieldName + " required, but " + set.size() + " provided");
+		}
+		return value;
+	}
 
-    private
-    Date getDate(Properties p, ServletProp key)
-    {
-        String value=p.getProperty(key.toString());
+	private
+	Date getDate(Properties p, ServletProp key)
+	{
+		String value = p.getProperty(key.toString());
 
-        if (value!=null)
-        {
-            try
-            {
-                return iso_8601_ish.parse(value);
-            }
-            catch (Exception e)
-            {
-                try
-                {
-                    return iso_8601_compat1.parse(value);
-                }
-                catch (Exception e2)
-                {
-                    log.print("ERROR :no matching date parser\n\t");
-                    log.print(e.toString());
-                    log.print("\n\t");
-                    log.print(e2.toString());
-                }
-            }
-        }
-        return null;
-    }
+		if (value != null)
+		{
+			try
+			{
+				return iso_8601_ish.parse(value);
+			}
+			catch (Exception e)
+			{
+				try
+				{
+					return iso_8601_compat1.parse(value);
+				}
+				catch (Exception e2)
+				{
+					log.print("ERROR :no matching date parser\n\t");
+					log.print(e.toString());
+					log.print("\n\t");
+					log.print(e2.toString());
+				}
+			}
+		}
+		return null;
+	}
 
-    private
-    void tagPresentDate(Properties p, ServletProp key)
-    {
-        String value=iso_8601_ish.format(new Date());
-        p.setProperty(key.toString(), value);
-    }
+	private
+	void tagPresentDate(Properties p, ServletProp key)
+	{
+		String value = iso_8601_ish.format(new Date());
+		p.setProperty(key.toString(), value);
+	}
 
 	/**
 	 * Writes the properties file in such a way that if it is interfered with (e.g. a full disk), then a
@@ -3212,10 +2980,10 @@ public class Service implements Runnable
 	void writeProperties(Properties properties) throws IOException
 	{
 		final
-		int servicePort=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
+		int servicePort = Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
 
 		final
-		File destination=configFileForServicePort(servicePort);
+		File destination = configFileForServicePort(servicePort);
 
 		writeProperties(properties, destination);
 	}
@@ -3230,10 +2998,10 @@ public class Service implements Runnable
 	 * @throws IOException
 	 */
 	private
-    void writeProperties(Properties p, File destination) throws IOException
-    {
+	void writeProperties(Properties p, File destination) throws IOException
+	{
 		final
-		File swapFile=new File(destination.getParent(), destination.getName()+".swp");
+		File swapFile = new File(destination.getParent(), destination.getName() + ".swp");
 		{
 			final
 			FileOutputStream fos = new FileOutputStream(swapFile);
@@ -3242,27 +3010,27 @@ public class Service implements Runnable
 			fos.close();
 		}
 
-		if (swapFile.length()==0)
+		if (swapFile.length() == 0)
 		{
 			throw new IOException("written config file is empty!");
 		}
 
 		if (swapFile.renameTo(destination))
 		{
-			log.println("wrote: "+destination);
+			log.println("wrote: " + destination);
 		}
 		else
 		{
 			log.println("overwrite by rename does not work?");
 
 			final
-			String date=compact_iso_8601_ish_filename.format(new Date());
+			String date = compact_iso_8601_ish_filename.format(new Date());
 
 			final
-			int randomInt=1000+new Random(System.nanoTime()).nextInt(9000);
+			int randomInt = 1000 + new Random(System.nanoTime()).nextInt(9000);
 
 			final
-			File step=new File(destination.getParent(), destination.getName()+"."+date+"."+randomInt);
+			File step = new File(destination.getParent(), destination.getName() + "." + date + "." + randomInt);
 
 			if (!destination.renameTo(step) || !swapFile.renameTo(destination))
 			{
@@ -3274,729 +3042,297 @@ public class Service implements Runnable
 				step.delete();
 			}
 		}
-    }
-
-    private
-    Properties getEmbeddedAppProperties(File warFile) throws IOException
-    {
-        JarFile jarFile=new JarFile(warFile);
-        try {
-            ZipEntry zipEntry = jarFile.getEntry("WEB-INF/app.properties");
-            if (zipEntry==null) {
-                log.println("No app.properties");
-                return null;
-            }
-            InputStream inputStream=jarFile.getInputStream(zipEntry);
-            if (inputStream==null)
-            {
-                log.println("cannot get inputstream for app.properties");
-                return null;
-            }
-            else
-            {
-                try {
-                    Properties retval=new Properties();
-                    retval.load(inputStream);
-                    log.println("read "+retval.size()+" properties from embedded app.properties file");
-                    return retval;
-                } finally {
-                    inputStream.close();
-                }
-            }
-        }  finally {
-            jarFile.close();
-        }
-    }
-
-    private static
-    void maybeSet(Properties p, ServletProp keyCode, String ifNotPresent)
-    {
-        String key=keyCode.toString();
-        if (!p.containsKey(key))
-        {
-            p.setProperty(key, ifNotPresent);
-        }
-    }
-
-    private
-    Filter getFilter(List<String> args) throws IOException
-    {
-        Filter root=new Filter();
-        Filter building=root;
-
-        Iterator<String> i=args.iterator();
-
-        while (i.hasNext())
-        {
-            String flag=i.next();
-            String argument=null;
-
-            {
-                int equals=flag.indexOf('=');
-                if (equals > 0)
-                {
-                    argument=flag.substring(equals+1);
-                    flag=flag.substring(0, equals);
-                    //log.println("split: flag="+flag+" & arg="+argument);
-                }
-            }
-
-            //most trailing "s"es can be ignored (except: "unless")
-            if (flag.endsWith("s") && !flag.endsWith("unless"))
-            {
-                flag=flag.substring(0, flag.length()-1);
-                log.println("trimming 's' from flag yields: "+flag);
-                if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
-            }
-
-            //Trim off leading hypens
-            while (flag.charAt(0)=='-')
-            {
-                flag=flag.substring(1);
-                if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
-            }
-
-            if (flag.equals("all"))
-            {
-                building.explicitMatchAll=true;
-                continue;
-            }
-
-            if (flag.equals("or"))
-            {
-                building=building.or();
-                continue;
-            }
-
-            if (flag.equals("except") || flag.equals("and-not") || flag.equals("but-not") || flag.equals("unless"))
-            {
-                building=building.andNot();
-                continue;
-            }
-
-            if (flag.endsWith("all-but"))
-            {
-                building.explicitMatchAll=true;
-                building=building.andNot();
-                continue;
-            }
-
-            if (flag.endsWith("where"))
-            {
-                building=root.where();
-                continue;
-            }
-
-            // "filter" may be change
-            Filter filter=building;
-
-            //----------- no-argument options
-
-            if (flag.startsWith("without-") && argument==null)
-            {
-                String optionName=flagToOptionName(flag);
-                log.println("* without: "+optionName);
-                filter.without(optionName);
-                continue;
-            }
-
-            //------------
-            // A hack to accept entries like --not-port 123 & --except-name bob
-
-            if (flag.startsWith("not-") || flag.startsWith("except-") || flag.startsWith("without-"))
-            {
-                filter=filter.andNot();
-                flag=flag.substring(flag.indexOf('-')+1);
-                log.println("* negated flag: "+flag);
-            }
-
-            //------------
-
-            //!!!: this "endsWith" logic has reached the end of it's utility, we should just strip the leading hypens and be done with it.
-            if (flag.equals("live"   )) { filter.state("alive"  ); continue; }
-            if (flag.equals("alive"  )) { filter.state("alive"  ); continue; }
-            if (flag.equals("dead"   )) { filter.state("dead"   ); continue; }
-            if (flag.equals("stopped")) { filter.state("stopped"); continue; }
-
-            if (argument==null)
-            {
-                try {
-                    argument=i.next();
-                } catch (NoSuchElementException e) {
-                    throw new IllegalArgumentException(flag+" requires one argument, or is an argument with a missing flag (e.g. maybe 'port' or 'name' should come before it)", e);
-                }
-                if (argument.length()==0)
-                {
-                    throw new IllegalArgumentException("argument cannot be the empty string");
-                }
-                if (argument.charAt(0)=='-')
-                {
-                    throw new IllegalArgumentException("arguments & flags seem to be confused: "+argument);
-                }
-            }
-
-            if (flag.startsWith("heap"))
-            {
-                filter.heap(argument);
-            }
-            else if (flag.equals("jmx") || flag.equals("jmx-port"))
-            {
-                filter.jmx(argument);
-            }
-            else if (flag.endsWith("port"))
-            {
-                filter.port(argument);
-            }
-            else if (flag.equals("name"))
-            {
-                filter.name(argument);
-            }
-            else if (flag.equals("path"))
-            {
-                filter.path(argument);
-            }
-            else if (flag.startsWith("perm"))
-            {
-                filter.perm(argument);
-            }
-            else if (flag.equals("pid"))
-            {
-                filter.pid(argument);
-            }
-            else if (flag.equals("state"))
-            {
-                filter.state(argument);
-            }
-            else if (flag.startsWith("stack"))
-            {
-                filter.stack(argument);
-            }
-            else if (flag.equals("tag"))
-            {
-                filter.tag(argument);
-            }
-            else if (flag.equals("version"))
-            {
-                filter.version(argument);
-            }
-            else if (flag.startsWith("war"))
-            {
-                filter.war(argument);
-            }
-            else if (flag.startsWith("with-"))
-            {
-                String optionName=flagToOptionName(flag);
-                log.println("* option: "+optionName+" = "+argument);
-                filter.option(optionName, argument);
-            }
-            else if (flag.equals("with"))
-            {
-                String[] options=argument.split(",");
-                for (String optionName : options) {
-                    String value="TRUE";
-                    log.println("* option: "+optionName+" = "+value);
-                    filter.option(optionName, value);
-                }
-            }
-            else if (flag.equals("without"))
-            {
-                log.println("* without: "+argument);
-                filter.without(argument);
-            }
-            else
-            {
-                throw new IllegalArgumentException("Unknown command line argument/flag: "+flag);
-            }
-        }
-
-        //We must straighten out the logical backwards-ness... "where" is the primary filter, if it exists
-        if (root.whereFilter!=null)
-        {
-            Filter primary=root.whereFilter;
-            Filter setFilter=root;
-            root.whereFilter=null;
-            primary.kludgeSetFilter=setFilter;
-            return primary;
-        }
-        else
-        {
-            return root;
-        }
-
-    }
-
-    /**
-     * given "--with-host" or "-with-host" return "host"
-     */
-    private
-    String flagToOptionName(String flag)
-    {
-        int hypen=flag.indexOf("-", 3);
-        if (hypen<0)
-        {
-            throw new IllegalArgumentException("does not look like an option flag: "+flag);
-        }
-        return flag.substring(hypen+1);
-    }
-
-    private
-    void doStatsCommand(Filter filter, PrintStream out) throws IOException
-    {
-        List<Properties> matchingProperties = propertiesFromMatchingConfigFiles(filter);
-		Map<Properties,String> rpsPerServlet = getRequestsPerSecondForEachServlet(matchingProperties);
-
-        out.println("GOOD");
-
-        boolean anyVersions=anyPropertyHas(matchingProperties, VERSION);
-        boolean anyTags    =anyPropertyHas(matchingProperties, TAGS);
-		boolean anyRespawns=anyPropertyHas(matchingProperties, RESPAWN_COUNT);
-
-        if (true)
-        { //scope for A & B
-
-            StringBuilder a=new StringBuilder();
-            StringBuilder b=new StringBuilder();
-
-            //Basically... don't print those columns that are already specified by filter...
-            // and print the predictably-sized fields first, then likely-to-be-small, then rest
-            // PORT | LIFE | HEAP | PERM | VERSION | PATH | App-name
-
-            if (filter.port==null)
-            {
-                a.append(" Port  |");
-                b.append("-------+");
-                //append(" 10000 |");
-            }
-
-            a.append("  PID  | Life | RPS  |  Heap Usage   | PermGen Usage ");
-            b.append("-------+------+------+---------------+---------------");
-            //append(" 12345 | LIVE | 100m |  100% of 999m |  100% of 999m ");
-            //append(" 12333 | DEAD |  10k |   10% of   3g |   10% of   9m ");
-            //append("    -1 | STOP | 999  |    - N/A -    |    - N/A -    ");
-			//append(" 12333 | DEAD | 0.03 |   10% of   3g |   10% of   9m ");
-
-			if (anyRespawns)
-			{
-				a.append("| Death ");
-				b.append("+-------");
-				//append("|  9999 ");
-				//append("|       ");
-				//append("|   10k ");
-			}
-
-            if (filter.version==null && anyVersions)
-            {
-                a.append("| Version  ");
-                b.append("+----------");
-                //append("| v0.3.31  ");
-                //append("|   N/A    ");
-				//append("| snapshot ");
-            }
-
-            if (filter.path==null)
-            {
-                a.append("| Request Path ");
-                b.append("+--------------");
-                //append("| /latest      ");
-                //append("| /wui         ");
-                //append("| /statements  ");
-            }
-
-            if (filter.tag==null && anyTags)
-            {
-                a.append("|     Tags    ");
-                b.append("+-------------");
-                //append("| production  ");
-                //append("| testing     ");
-                //append("| development ");
-                //append("| integration ");
-            }
-
-            if (filter.name==null)
-            {
-                a.append("| Application Name");
-                b.append("+----------------------");
-                //append("| capillary-wui\n");
-                //append("| android-distribution\n");
-                //append("| cantina-web\n");
-            }
-
-            out.println(a.toString());
-            out.println(b.toString());
-
-        } //scope for A & B
-
-        int count=0;
-
-        StringBuilder line=new StringBuilder(200);
-
-        for (Properties p : matchingProperties)
-        {
-            count++;
-
-            if (filter.port==null)
-            {
-                //append(" Port  |");
-                //append("-------+");
-                //append(" 10000 |");
-                line.append(' ');
-                line.append(String.format("%5s", p.getProperty(SERVICE_PORT.toString(), "Err")));
-                line.append(" |");
-            }
-
-            //append("  PID  | Life | RPS  |  Heap Usage   | PermGen Usage ");
-            //append("-------+------+------+---------------+---------------");
-            //append(" 12345 | LIVE | 121m |  100% of 999m |  100% of 999m ");
-            //append(" 12333 | DEAD |  32k |   10% of   3g |   10% of   9m ");
-            //append("    -1 | STOP |      |    - N/A -    |    - N/A -    ");
-            //append(" 12222 | LIVE | 10.8 |    No JMX     |    No JMX     ");
-			//append("    -1 | STOP | 0.01 |    - N/A -    |    - N/A -    ");
-            int pid=pid(p);
-
-            line.append(' ');
-
-			if (pid==-1)
-			{
-				//-blank- is more meaningful than "-1"...
-				line.append("     ");
-			}
-			else
-			{
-				line.append(String.format("%5d", pid));
-			}
-
-            ServletMemoryUsage smu=null;
-
-            if (pid<=1)
-            {
-                String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
-                String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
-
-                line.append(" | STOP |      |  ");
-                line.append(String.format("%12s", heap));
-                line.append(" |  ");
-                line.append(String.format("%12s", perm));
-                line.append(" ");
-            }
-            else if (ProcessUtils.isRunning(pid))
-            {
-				String requestsPerSecond=rpsPerServlet.get(p);
-                String jmxString=p.getProperty(JMX_PORT.toString());
-
-                if (jmxString!=null)
-				{
-                    try
-					{
-                        int jmxPort=Integer.parseInt(jmxString);
-                        smu=JMXUtils.getMemoryUsageGivenJMXPort(jmxPort);
-                    }
-					catch (Throwable t)
-					{
-                        t.printStackTrace();
-                    }
-                }
-
-                if (smu==null)
-                {
-                    //line.append(" | LIVE | 123m |    No JMX     |    No JMX     ");
-                    String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
-                    String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
-
-                    line.append(String.format(" | LIVE | %4s |  ", requestsPerSecond));
-                    line.append(String.format("???? of %4s", heap));
-                    line.append(" |  ");
-                    line.append(String.format("???? of %4s", perm));
-                    line.append(" ");
-                }
-                else
-                {
-					line.append(String.format(" | LIVE | %4s |  ", requestsPerSecond));
-                    line.append(smu.getHeapSummary());
-                    line.append(" |  ");
-                    line.append(smu.getPermGenSummary());
-                    line.append(' ');
-                }
-            }
-			else
-			{
-                String heap=p.getProperty(HEAP_SIZE.toString(), "n/a").toLowerCase();
-                String perm=p.getProperty(PERM_SIZE.toString(), "n/a").toLowerCase();
-
-                line.append(" | DEAD |      |  ");
-                line.append(String.format("%12s", heap));
-                line.append(" |  ");
-                line.append(String.format("%12s", perm));
-                line.append(" ");
-            }
-
-			if (anyRespawns)
-			{
-				//append("| Death ");
-				//append("+-------");
-				//append("|  9999 ");
-				//append("| 1,234 ");
-				//append("| 99999 ");
-				//append("|       ");
-				//append("|   10k ");
-				final
-				String integerString=p.getProperty(RESPAWN_COUNT.toString());
-
-				if (integerString==null)
-				{
-					line.append("|       ");
-				}
-				else
-				{
-					final
-					int i=Integer.parseInt(integerString);
-
-					if (i>9999)
-					{
-						line.append(String.format("| %4sk ", i/1000));
-					}
-					else
-					{
-						line.append(String.format("| %5s ", integerString));
-					}
-
-				}
-			}
-
-			if (filter.version==null && anyVersions)
-            {
-				final
-				String versionString=p.getProperty(VERSION.toString(), "");
-
-                //append("| Version  ");
-                //append("+----------");
-                //append("| v0.3.31  ");
-                //append("|   N/A    ");
-				//append("| snapshot ");
-                line.append("| ");
-
-				if (versionString.length()<=8)
-				{
-					line.append(String.format("%-8s", versionString));
-				}
-				else
-				{
-					line.append(versionString.substring(0,8));
-				}
-
-                line.append(' ');
-            }
-
-            if (filter.path==null)
-            {
-                //append("| Request Path ");
-                //append("+--------------");
-                //append("| /latest      ");
-                //append("| /wui         ");
-                //append("| /statements  ");
-                line.append("| ");
-                line.append(String.format("%-12s", getContextPath(p)));
-                line.append(" ");
-            }
-
-            if (filter.tag==null && anyTags)
-            {
-				final
-				String tagString=reorderTagString(p.getProperty(TAGS.toString(), ""));
-
-                //append("|     Tag     ");
-                //append("+-------------");
-                //append("| production  ");
-                //append("| testing     ");
-                //append("| development ");
-                //append("| integration ");
-                line.append("| ");
-
-				if (tagString.length()<=11)
-				{
-					line.append(String.format("%-11s", tagString));
-				}
-				else
-				{
-					line.append(tagString.substring(0, 11));
-				}
-
-                line.append(' ');
-            }
-
-            if (filter.name==null)
-            {
-                //append("| Application Name");
-                //append("+----------------------");
-                //append("| capillary-wui\n");
-                //append("| android-distribution\n");
-                //append("| cantina-web\n");
-                line.append("| ");
-                line.append(p.getProperty(NAME.toString(), "N/A"));
-            }
-
-            out.println(line.toString());
-            line.setLength(0);
-        }
-
-        out.println();
-
-        String message="stats matched "+count+" servlets";
-        out.println(message);
-        log.println(message);
-    }
-
-	private
-	Map<Properties, String> getRequestsPerSecondForEachServlet(List<Properties> propertiesList)
-	{
-		final
-		Map<Properties, String> retval=new HashMap<Properties, String>(propertiesList.size());
-
-		for (Properties properties : propertiesList)
-		{
-			String requestsPerSecondString;
-
-			try
-			{
-				requestsPerSecondString=getRequestsPerSecond(properties);
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace(log);
-				requestsPerSecondString="ERR";
-			}
-
-			retval.put(properties, requestsPerSecondString);
-		}
-
-		return retval;
 	}
 
 	private
-	String getRequestsPerSecond(Properties properties) throws IOException
+	Properties getEmbeddedAppProperties(File warFile) throws IOException
 	{
-		final
-		int pid=pid(properties);
-
-		if (pid<=0)
-		{
-			return "";
-		}
-
-		final
-		String servlet=humanReadable(properties);
-
-		final
-		int port=Integer.parseInt(properties.getProperty(SERVICE_PORT.toString()));
-
-		final
-		URLConnection connection = new URL("http://127.0.0.1:" + port + "/stats/").openConnection();
-
-		final
-		BufferedReader br=new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
+		JarFile jarFile = new JarFile(warFile);
 		try
 		{
-			final
-			String prefix="Per second: ";
-
-			String line;
-
-			while ((line=br.readLine())!=null)
+			ZipEntry zipEntry = jarFile.getEntry("WEB-INF/app.properties");
+			if (zipEntry == null)
 			{
-				if (line.startsWith(prefix))
+				log.println("No app.properties");
+				return null;
+			}
+			InputStream inputStream = jarFile.getInputStream(zipEntry);
+			if (inputStream == null)
+			{
+				log.println("cannot get inputstream for app.properties");
+				return null;
+			}
+			else
+			{
+				try
 				{
-					final
-					String retval;
-					{
-						final
-						int lessThan=line.indexOf('<');
-
-						if (lessThan>0)
-						{
-							retval=line.substring(prefix.length(), lessThan);
-						}
-						else
-						{
-							retval=line.substring(prefix.length());
-						}
-					}
-
-					log.println(servlet+" is at "+retval+" requests-per-second");
+					Properties retval = new Properties();
+					retval.load(inputStream);
+					log.println("read " + retval.size() + " properties from embedded app.properties file");
 					return retval;
 				}
+				finally
+				{
+					inputStream.close();
+				}
 			}
-
-			return "n/a";
 		}
 		finally
 		{
-			br.close();
+			jarFile.close();
+		}
+	}
+
+	private static
+	void maybeSet(Properties p, ServletProp keyCode, String ifNotPresent)
+	{
+		String key = keyCode.toString();
+		if (!p.containsKey(key))
+		{
+			p.setProperty(key, ifNotPresent);
 		}
 	}
 
 	private
-	String reorderTagString(String in)
+	Filter getFilter(List<String> args) throws IOException
 	{
-		String[] bits=in.split(",");
+		Filter root = new Filter();
+		Filter building = root;
 
-		if (bits.length==1) return in;
+		Iterator<String> i = args.iterator();
 
-		List<String> sortable=new ArrayList<String>(bits.length);
-
-		Collections.addAll(sortable, bits);
-		Collections.sort(sortable, tagComparator);
-
-		final
-		StringBuilder sb=new StringBuilder();
-
-		for (String s : sortable)
+		while (i.hasNext())
 		{
-			sb.append(s);
-			sb.append(',');
-		}
+			String flag = i.next();
+			String argument = null;
 
-		sb.deleteCharAt(sb.length()-1);
-
-		return sb.toString();
-	}
-
-	private final
-	Comparator<String> tagComparator = new Comparator<String>()
-	{
-		@Override
-		public
-		int compare(String a, String b)
-		{
-			int aL=a.length();
-			int bL=b.length();
-
-			if (aL==bL)
 			{
-				//Tags of the same size are alphabetical.
-				return a.compareTo(b);
+				int equals = flag.indexOf('=');
+				if (equals > 0)
+				{
+					argument = flag.substring(equals + 1);
+					flag = flag.substring(0, equals);
+					//log.println("split: flag="+flag+" & arg="+argument);
+				}
+			}
+
+			//most trailing "s"es can be ignored (except: "unless")
+			if (flag.endsWith("s") && !flag.endsWith("unless"))
+			{
+				flag = flag.substring(0, flag.length() - 1);
+				log.println("trimming 's' from flag yields: " + flag);
+				if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
+			}
+
+			//Trim off leading hypens
+			while (flag.charAt(0) == '-')
+			{
+				flag = flag.substring(1);
+				if (flag.isEmpty()) throw new IllegalArgumentException("flag reduces to empty string");
+			}
+
+			if (flag.equals("all"))
+			{
+				building.explicitMatchAll = true;
+				continue;
+			}
+
+			if (flag.equals("or"))
+			{
+				building = building.or();
+				continue;
+			}
+
+			if (flag.equals("except") || flag.equals("and-not") || flag.equals("but-not") || flag.equals("unless"))
+			{
+				building = building.andNot();
+				continue;
+			}
+
+			if (flag.endsWith("all-but"))
+			{
+				building.explicitMatchAll = true;
+				building = building.andNot();
+				continue;
+			}
+
+			if (flag.endsWith("where"))
+			{
+				building = root.where();
+				continue;
+			}
+
+			// "filter" may be change
+			Filter filter = building;
+
+			//----------- no-argument options
+
+			if (flag.startsWith("without-") && argument == null)
+			{
+				String optionName = flagToOptionName(flag);
+				log.println("* without: " + optionName);
+				filter.without(optionName);
+				continue;
+			}
+
+			//------------
+			// A hack to accept entries like --not-port 123 & --except-name bob
+
+			if (flag.startsWith("not-") || flag.startsWith("except-") || flag.startsWith("without-"))
+			{
+				filter = filter.andNot();
+				flag = flag.substring(flag.indexOf('-') + 1);
+				log.println("* negated flag: " + flag);
+			}
+
+			//------------
+
+			//!!!: this "endsWith" logic has reached the end of it's utility, we should just strip the leading hypens and be done with it.
+			if (flag.equals("live"))
+			{
+				filter.state("alive");
+				continue;
+			}
+			if (flag.equals("alive"))
+			{
+				filter.state("alive");
+				continue;
+			}
+			if (flag.equals("dead"))
+			{
+				filter.state("dead");
+				continue;
+			}
+			if (flag.equals("stopped"))
+			{
+				filter.state("stopped");
+				continue;
+			}
+
+			if (argument == null)
+			{
+				try
+				{
+					argument = i.next();
+				}
+				catch (NoSuchElementException e)
+				{
+					throw new IllegalArgumentException(flag + " requires one argument, or is an argument with a missing flag (e.g. maybe 'port' or 'name' should come before it)",
+														  e);
+				}
+				if (argument.length() == 0)
+				{
+					throw new IllegalArgumentException("argument cannot be the empty string");
+				}
+				if (argument.charAt(0) == '-')
+				{
+					throw new IllegalArgumentException("arguments & flags seem to be confused: " + argument);
+				}
+			}
+
+			if (flag.startsWith("heap"))
+			{
+				filter.heap(argument);
+			}
+			else if (flag.equals("jmx") || flag.equals("jmx-port"))
+			{
+				filter.jmx(argument);
+			}
+			else if (flag.endsWith("port"))
+			{
+				filter.port(argument);
+			}
+			else if (flag.equals("name"))
+			{
+				filter.name(argument);
+			}
+			else if (flag.equals("path"))
+			{
+				filter.path(argument);
+			}
+			else if (flag.startsWith("perm"))
+			{
+				filter.perm(argument);
+			}
+			else if (flag.equals("pid"))
+			{
+				filter.pid(argument);
+			}
+			else if (flag.equals("state"))
+			{
+				filter.state(argument);
+			}
+			else if (flag.startsWith("stack"))
+			{
+				filter.stack(argument);
+			}
+			else if (flag.equals("tag"))
+			{
+				filter.tag(argument);
+			}
+			else if (flag.equals("version"))
+			{
+				filter.version(argument);
+			}
+			else if (flag.startsWith("war"))
+			{
+				filter.war(argument);
+			}
+			else if (flag.startsWith("with-"))
+			{
+				String optionName = flagToOptionName(flag);
+				log.println("* option: " + optionName + " = " + argument);
+				filter.option(optionName, argument);
+			}
+			else if (flag.equals("with"))
+			{
+				String[] options = argument.split(",");
+				for (String optionName : options)
+				{
+					String value = "TRUE";
+					log.println("* option: " + optionName + " = " + value);
+					filter.option(optionName, value);
+				}
+			}
+			else if (flag.equals("without"))
+			{
+				log.println("* without: " + argument);
+				filter.without(argument);
 			}
 			else
 			{
-				//Short tags before long tags...
-				return (aL-bL);
+				throw new IllegalArgumentException("Unknown command line argument/flag: " + flag);
 			}
 		}
-	};
 
-	private
-	boolean anyPropertyHas(List<Properties> matchingProperties, ServletProp key)
-	{
-		String keyString = key.toString();
-
-		for (Properties property : matchingProperties)
+		//We must straighten out the logical backwards-ness... "where" is the primary filter, if it exists
+		if (root.whereFilter != null)
 		{
-			if (property.containsKey(keyString))
-			{
-				return true;
-			}
+			Filter primary = root.whereFilter;
+			Filter setFilter = root;
+			root.whereFilter = null;
+			primary.kludgeSetFilter = setFilter;
+			return primary;
+		}
+		else
+		{
+			return root;
 		}
 
-		return false;
+	}
+
+	/**
+	 * given "--with-host" or "-with-host" return "host"
+	 */
+	private
+	String flagToOptionName(String flag)
+	{
+		int hypen = flag.indexOf("-", 3);
+		if (hypen < 0)
+		{
+			throw new IllegalArgumentException("does not look like an option flag: " + flag);
+		}
+		return flag.substring(hypen + 1);
 	}
 
 	private
@@ -4013,7 +3349,7 @@ public class Service implements Runnable
 		for (File file : files)
 		{
 			final
-			String baseName=file.getName();
+			String baseName = file.getName();
 
 			if (!baseName.endsWith(".config"))
 			{
@@ -4027,15 +3363,15 @@ public class Service implements Runnable
 				try
 				{
 					final
-					int servicePort=Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
+					int servicePort = Integer.parseInt(p.getProperty(SERVICE_PORT.toString()));
 
 					final
-					String expectedName=servicePort+".config";
+					String expectedName = servicePort + ".config";
 
 					if (!baseName.equals(expectedName))
 					{
 						//TODO: let's extract and use (but still verify) the service port from the filename, therefor supporting a 'rename to move port' or 'forgot to edit file' maintainence workflows.
-						log.println("WARNING: "+file+" is for port "+servicePort+", but is not named: "+expectedName);
+						log.println("WARNING: " + file + " is for port " + servicePort + ", but is not named: " + expectedName);
 					}
 
 					retval.add(p);

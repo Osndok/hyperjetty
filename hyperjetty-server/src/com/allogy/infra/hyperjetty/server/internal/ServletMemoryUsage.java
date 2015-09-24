@@ -1,4 +1,4 @@
-package com.allogy.infra.hyperjetty.server;
+package com.allogy.infra.hyperjetty.server.internal;
 
 import java.lang.management.MemoryUsage;
 
@@ -7,6 +7,7 @@ import java.lang.management.MemoryUsage;
  * Date: 2013/05/15
  * Time: 4:25 PM
  */
+public
 class ServletMemoryUsage
 {
 

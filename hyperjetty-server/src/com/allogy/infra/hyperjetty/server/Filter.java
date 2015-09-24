@@ -12,27 +12,28 @@ import static com.allogy.infra.hyperjetty.common.ServletProp.*;
  * Date: 2013/05/15
  * Time: 4:47 PM
  */
+public
 class Filter
 {
 
     //Safe, no restart required
-    Set<String> name;
-    Set<String> tag;
-    Set<String> version;
+    public Set<String> name;
+	public Set<String> tag;
+	public Set<String> version;
 
     //Unsafe, requires restart
-    Set<String> port;
-    Set<String> path;
-    Set<String> jmxPort;
-    Set<String> heap;
-    Set<String> perm;
+	public Set<String> port;
+	public Set<String> path;
+	public Set<String> jmxPort;
+	public Set<String> heap;
+	public Set<String> perm;
 
     //Unsettable, but can be used as a key
-    Set<String> pid;
+	public Set<String> pid;
 
     //Late comers, does not actually filter (shouldn't we have relative filters like --stack<5m ???)
-    Set<String> war;
-    Set<String> stack;
+	public Set<String> war;
+	public Set<String> stack;
 
     public
     void applySetOperationTo(Properties properties)

@@ -1,4 +1,4 @@
-package com.allogy.infra.hyperjetty.server;
+package com.allogy.infra.hyperjetty.server.internal;
 
 import javax.management.*;
 import javax.management.openmbean.CompositeData;
@@ -24,10 +24,12 @@ import java.util.concurrent.*;
  * Date: 2013/05/14
  * Time: 10:53 PM
  */
+public
 class JMXUtils
 {
 
-    public static ServletMemoryUsage getMemoryUsageGivenJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
+    public static
+	ServletMemoryUsage getMemoryUsageGivenJMXPort(int jmxPort) throws IOException, MalformedObjectNameException,
             MBeanException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException
     {
         JMXServiceURL jmxServiceURL=serviceUrlForPort(jmxPort);
