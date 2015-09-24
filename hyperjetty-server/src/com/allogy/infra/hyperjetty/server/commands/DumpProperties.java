@@ -4,6 +4,7 @@ import com.allogy.infra.hyperjetty.server.CommandUtilities;
 import com.allogy.infra.hyperjetty.server.Filter;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
@@ -26,7 +27,12 @@ class DumpProperties extends AbstractCommand
 	@Override
 	public
 	void execute(
-					Filter filter, List<Properties> matches, CommandUtilities util, PrintStream out
+					Filter filter,
+					List<Properties> matches,
+					CommandUtilities util,
+					ObjectInputStream in,
+					PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		if (matches.size() != 1)

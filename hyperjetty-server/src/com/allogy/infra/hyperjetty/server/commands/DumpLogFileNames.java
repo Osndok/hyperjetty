@@ -1,10 +1,10 @@
 package com.allogy.infra.hyperjetty.server.commands;
 
-import com.allogy.infra.hyperjetty.server.Command;
 import com.allogy.infra.hyperjetty.server.CommandUtilities;
 import com.allogy.infra.hyperjetty.server.Filter;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
@@ -48,7 +48,8 @@ class DumpLogFileNames extends AbstractCommand
 					Filter filter,
 					List<Properties> matchedProperties,
 					CommandUtilities commandUtilities,
-					PrintStream out
+					ObjectInputStream in, PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		out.println("GOOD");

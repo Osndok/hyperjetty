@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
@@ -30,7 +31,8 @@ class DumpLogFileErrors extends AbstractCommand
 					Filter filter,
 					List<Properties> matchedProperties,
 					CommandUtilities util,
-					PrintStream out
+					ObjectInputStream in, PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		if (matchedProperties.isEmpty())

@@ -133,15 +133,15 @@ class Filter
     }
 
 
-    HashMap<String, String> options;
+    public HashMap<String, String> options;
 
-    boolean explicitMatchAll;
+    public boolean explicitMatchAll;
 
-    Filter orFilter;
-    Filter andNotFilter;
+    public Filter orFilter;
+    public Filter andNotFilter;
 
-    Filter whereFilter;
-    Filter kludgeSetFilter;
+    public Filter whereFilter;
+    public Filter kludgeSetFilter;
 
     /*
     @Override
@@ -353,7 +353,7 @@ class Filter
         throw new IllegalArgumentException("Unknown servlet state: "+state);
     }
 
-    Set <String> without;
+    public Set <String> without;
 
     public
     void without(String option)

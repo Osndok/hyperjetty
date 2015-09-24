@@ -4,6 +4,7 @@ import com.allogy.infra.hyperjetty.server.CommandUtilities;
 import com.allogy.infra.hyperjetty.server.Filter;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
@@ -29,7 +30,8 @@ class NginxRoutingTable extends AbstractCommand
 					Filter filter,
 					List<Properties> matchedProperties,
 					CommandUtilities commandUtilities,
-					PrintStream out
+					ObjectInputStream in, PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		int tabs = Integer.parseInt(filter.getOption("tabs", "2"));

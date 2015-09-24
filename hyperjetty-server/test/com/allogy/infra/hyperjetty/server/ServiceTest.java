@@ -1,5 +1,6 @@
 package com.allogy.infra.hyperjetty.server;
 
+import com.allogy.infra.hyperjetty.server.internal.PortReservation;
 import junit.framework.TestCase;
 import org.testng.annotations.Test;
 
@@ -54,7 +55,7 @@ class ServiceTest extends TestCase
 	{
 		String s=String.valueOf(c);
 		int max=1000;
-		int hash=PortReservation.nameHash(s, max);
+		int hash= PortReservation.nameHash(s, max);
 		System.out.println(String.format("%12s / %d -> %d", s, max, hash));
 
 		assertTrue(hash >= 0);

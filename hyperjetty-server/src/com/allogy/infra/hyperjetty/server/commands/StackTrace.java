@@ -4,6 +4,7 @@ import com.allogy.infra.hyperjetty.server.CommandUtilities;
 import com.allogy.infra.hyperjetty.server.Filter;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,8 @@ class StackTrace extends AbstractCommand
 					Filter filter,
 					List<Properties> matchedProperties,
 					CommandUtilities commandUtilities,
-					PrintStream out
+					ObjectInputStream in, PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		int total = 0;

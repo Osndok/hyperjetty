@@ -10,6 +10,7 @@ import com.allogy.infra.hyperjetty.server.internal.ServletMemoryUsage;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.PrintStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -52,7 +53,8 @@ class DumpServletStatus extends AbstractCommand
 					Filter filter,
 					List<Properties> matchingProperties,
 					CommandUtilities util,
-					PrintStream out
+					ObjectInputStream in, PrintStream out,
+					int numFiles
 	) throws IOException
 	{
 		//Kludgy...

@@ -1,4 +1,4 @@
-package com.allogy.infra.hyperjetty.server;
+package com.allogy.infra.hyperjetty.server.internal;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -8,6 +8,7 @@ import java.net.ServerSocket;
  * Date: 2013/05/13
  * Time: 4:03 PM
  */
+public
 class PortReservation
 {
     private final int servicePort;
